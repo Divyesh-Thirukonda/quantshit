@@ -4,6 +4,13 @@ A comprehensive Python-based arbitrage trading system for prediction markets, st
 
 ## Features
 
+### For Managers & Teams
+- **🚀 Developer-Friendly Frameworks**: New developers can build features in minutes, not days
+- **📚 Comprehensive Guides**: Step-by-step tutorials for data sources, strategies, and execution
+- **🧪 Built-in Testing**: Easy testing tools for rapid development and validation
+- **🎯 Difficulty Levels**: Beginner, intermediate, and advanced tracks for different skill levels
+
+### Core Trading Features
 - **Multi-Platform Support**: Platform-agnostic design with Kalshi integration
 - **Strategy Framework**: Modular system for developing custom trading strategies
 - **Built-in Strategies**: Cross-platform arbitrage and correlation arbitrage
@@ -15,6 +22,30 @@ A comprehensive Python-based arbitrage trading system for prediction markets, st
 - **Utility Modules**: Statistics and NLP analysis tools
 
 ## Quick Start
+
+### For Developers (New! 🎉)
+The easiest way to get started is with our new developer-friendly frameworks:
+
+```bash
+# 1. Setup in 30 seconds
+git clone <repository>
+cd quantshit
+pip install -r requirements.txt
+
+# 2. See everything in action
+python scripts/quick_start.py
+
+# 3. Test the examples
+python scripts/test_strategy.py --list
+python scripts/test_strategy.py --create-example
+```
+
+**Want to build something? Check the 5-minute guides:**
+- 📊 **Data Sources**: `docs/QUICK_START.md#your-first-data-source-5-minutes`
+- 🧠 **Strategies**: `docs/QUICK_START.md#your-first-strategy-10-minutes`  
+- 💰 **Execution**: `docs/QUICK_START.md#your-first-execution-5-minutes`
+
+### Traditional Setup
 
 ### 1. Setup
 ```bash
