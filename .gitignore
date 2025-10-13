@@ -66,7 +66,6 @@ config/local.conf
 secrets/
 
 # Data files
-data/
 backtest_results/
 *.csv
 *.json
