@@ -1,1 +1,0 @@
-"""Data acquisition and management components."""
