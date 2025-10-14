@@ -144,9 +144,115 @@ class ArbitrageStrategy(BaseStrategy):
         return opportunities
 
 
+class ExpiryStrategy(BaseStrategy):
+    """Strategy that focuses on markets closest to expiry"""
+    
+    def __init__(self, max_days_to_expiry: float = 7, min_volume: float = 1000):
+        super().__init__("expiry")
+        self.max_days_to_expiry = max_days_to_expiry
+        self.min_volume = min_volume
+    
+    def find_opportunities(self, markets_by_platform: Dict[str, List[Dict]]) -> List[Dict]:
+        """Find markets close to expiry with potential for volatility"""
+        from datetime import datetime, timedelta
+        
+        opportunities = []
+        current_time = datetime.now()
+        max_expiry_time = current_time + timedelta(days=self.max_days_to_expiry)
+        
+        # Collect all markets across platforms
+        all_markets = []
+        for platform, markets in markets_by_platform.items():
+            all_markets.extend(markets)
+        
+        # Filter markets close to expiry
+        expiring_markets = []
+        for market in all_markets:
+            close_time = market.get('close_time')
+            if close_time and close_time <= max_expiry_time and close_time > current_time:
+                # Calculate time to expiry
+                time_to_expiry = close_time - current_time
+                days_to_expiry = time_to_expiry.total_seconds() / (24 * 3600)
+                
+                # Only consider markets with sufficient volume
+                if market.get('volume', 0) >= self.min_volume:
+                    expiring_markets.append({
+                        'market': market,
+                        'days_to_expiry': days_to_expiry,
+                        'hours_to_expiry': time_to_expiry.total_seconds() / 3600
+                    })
+        
+        # Sort by time to expiry (closest first)
+        expiring_markets.sort(key=lambda x: x['days_to_expiry'])
+        
+        # Create opportunities based on expiry proximity and price extremes
+        for market_info in expiring_markets:
+            market = market_info['market']
+            days_to_expiry = market_info['days_to_expiry']
+            hours_to_expiry = market_info['hours_to_expiry']
+            
+            yes_price = market.get('yes_price', 0.5)
+            no_price = market.get('no_price', 0.5)
+            
+            # Look for extreme prices that might correct before expiry
+            opportunity_type = None
+            confidence_score = 0
+            
+            # Very high YES probability (might be overconfident)
+            if yes_price >= 0.85:
+                opportunity_type = "overconfident_yes"
+                confidence_score = (yes_price - 0.85) * 10  # Scale 0-1.5
+            
+            # Very low YES probability (might be underestimated)  
+            elif yes_price <= 0.15:
+                opportunity_type = "undervalued_yes"
+                confidence_score = (0.15 - yes_price) * 10  # Scale 0-1.5
+            
+            # Markets very close to 50/50 might resolve dramatically
+            elif 0.45 <= yes_price <= 0.55:
+                opportunity_type = "uncertain_resolution"
+                confidence_score = 0.5 - abs(yes_price - 0.5)  # Higher score for closer to 50/50
+            
+            if opportunity_type:
+                # Higher urgency for markets expiring sooner
+                urgency_multiplier = max(0.1, 1 - (days_to_expiry / self.max_days_to_expiry))
+                final_score = confidence_score * urgency_multiplier
+                
+                opportunities.append({
+                    'type': 'expiry_based',
+                    'subtype': opportunity_type,
+                    'market': market,
+                    'days_to_expiry': days_to_expiry,
+                    'hours_to_expiry': hours_to_expiry,
+                    'yes_price': yes_price,
+                    'no_price': no_price,
+                    'confidence_score': confidence_score,
+                    'urgency_multiplier': urgency_multiplier,
+                    'final_score': final_score,
+                    'trade_amount': 100,
+                    'expected_profit': final_score * 0.1,  # Estimate based on score
+                    'recommended_action': self._get_recommended_action(opportunity_type, yes_price)
+                })
+        
+        # Sort by final score (best opportunities first)
+        opportunities.sort(key=lambda x: x['final_score'], reverse=True)
+        return opportunities
+    
+    def _get_recommended_action(self, opportunity_type: str, yes_price: float) -> str:
+        """Get recommended trading action based on opportunity type"""
+        if opportunity_type == "overconfident_yes":
+            return f"Consider selling YES at {yes_price:.3f} (may be overpriced)"
+        elif opportunity_type == "undervalued_yes":
+            return f"Consider buying YES at {yes_price:.3f} (may be undervalued)"
+        elif opportunity_type == "uncertain_resolution":
+            return f"High volatility expected - consider straddle or wait for news"
+        return "Monitor for price movements"
+
+
 # Registry for strategies
 STRATEGIES = {
-    'arbitrage': ArbitrageStrategy
+    'arbitrage': ArbitrageStrategy,
+    'expiry': ExpiryStrategy
 }
 
 

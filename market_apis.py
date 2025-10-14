@@ -49,6 +49,16 @@ class PolymarketAPI(BaseMarketAPI):
             for market in markets:
                 volume = float(market.get('volume24hr', 0))
                 if volume >= min_volume:
+                    # Parse expiry date - Polymarket uses endDate
+                    end_date = market.get('endDate')
+                    close_time = None
+                    if end_date:
+                        try:
+                            from datetime import datetime
+                            close_time = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                        except:
+                            close_time = None
+                    
                     filtered_markets.append({
                         'id': market['conditionId'],
                         'title': market['question'],
@@ -56,6 +66,7 @@ class PolymarketAPI(BaseMarketAPI):
                         'volume': volume,
                         'yes_price': float(market.get('outcomePrices', ['0.5', '0.5'])[0]),
                         'no_price': float(market.get('outcomePrices', ['0.5', '0.5'])[1]),
+                        'close_time': close_time,
                         'raw_data': market
                     })
             
@@ -110,6 +121,17 @@ class ManifoldAPI(BaseMarketAPI):
                 volume = market.get('volume24Hours', 0)
                 if volume >= min_volume and market.get('outcomeType') == 'BINARY':
                     prob = market.get('probability', 0.5)
+                    
+                    # Parse close date - Manifold uses closeTime
+                    close_time_ms = market.get('closeTime')
+                    close_time = None
+                    if close_time_ms:
+                        try:
+                            from datetime import datetime
+                            close_time = datetime.fromtimestamp(close_time_ms / 1000)
+                        except:
+                            close_time = None
+                    
                     filtered_markets.append({
                         'id': market['id'],
                         'title': market['question'],
@@ -117,6 +139,7 @@ class ManifoldAPI(BaseMarketAPI):
                         'volume': volume,
                         'yes_price': prob,
                         'no_price': 1 - prob,
+                        'close_time': close_time,
                         'raw_data': market
                     })
             

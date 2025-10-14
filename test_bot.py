@@ -27,15 +27,23 @@ def test_bot():
         total_markets = sum(len(markets) for markets in markets_data.values())
         print(f"   ✅ Collected {total_markets} markets from {len(markets_data)} platforms")
         
-        # Test strategy
-        print("\n2. Testing strategy...")
-        opportunities = bot.strategy.find_opportunities(markets_data)
-        print(f"   ✅ Found {len(opportunities)} arbitrage opportunities")
+        # Test strategies
+        print("\n2. Testing strategies...")
+        all_opportunities = []
+        for strategy_name, strategy in bot.strategies.items():
+            opportunities = strategy.find_opportunities(markets_data)
+            print(f"   ✅ {strategy_name}: Found {len(opportunities)} opportunities")
+            all_opportunities.extend(opportunities)
         
-        if opportunities:
-            print("\n   Top opportunities:")
-            for i, opp in enumerate(opportunities[:3]):
-                print(f"   {i+1}. {opp['outcome']} - Spread: {opp['spread']:.4f} - Profit: ${opp['expected_profit']:.4f}")
+        if all_opportunities:
+            print(f"\n   Total opportunities: {len(all_opportunities)}")
+            print("   Top opportunities:")
+            for i, opp in enumerate(all_opportunities[:3]):
+                profit = opp.get('expected_profit', 0)
+                opp_type = opp.get('type', 'unknown')
+                print(f"   {i+1}. {opp_type} - Profit: ${profit:.4f}")
+        
+        opportunities = all_opportunities  # For compatibility with execution test
         
         # Test execution (dry run)
         print("\n3. Testing execution (demo mode)...")

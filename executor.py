@@ -1,6 +1,7 @@
 from typing import List, Dict
 import time
 from market_apis import get_market_api
+from position_tracker import PositionTracker
 
 
 class TradeExecutor:
@@ -9,6 +10,7 @@ class TradeExecutor:
     def __init__(self, api_keys: Dict[str, str]):
         self.api_keys = api_keys
         self.apis = {}
+        self.position_tracker = PositionTracker()
         
         # Initialize APIs for each platform
         for platform, api_key in api_keys.items():
@@ -68,6 +70,20 @@ class TradeExecutor:
                 results['error'] = f"Buy order failed: {buy_result.get('message', 'Unknown error')}"
                 return results
             
+            # Record buy trade
+            strategy = opportunity.get('strategy', 'unknown')
+            buy_trade_id = self.position_tracker.add_trade(
+                market_id=buy_market['id'],
+                market_title=buy_market['title'],
+                platform=buy_platform,
+                action="BUY",
+                outcome=outcome,
+                shares=amount,
+                price=opportunity['buy_price'],
+                strategy=strategy,
+                order_id=buy_result.get('order_id', '')
+            )
+            
             # Small delay between orders
             time.sleep(1)
             
@@ -85,7 +101,22 @@ class TradeExecutor:
                 results['error'] = f"Sell order failed: {sell_result.get('message', 'Unknown error')}"
                 return results
             
+            # Record sell trade
+            sell_trade_id = self.position_tracker.add_trade(
+                market_id=sell_market['id'],
+                market_title=sell_market['title'],
+                platform=sell_platform,
+                action="SELL",
+                outcome=outcome,
+                shares=amount,
+                price=opportunity['sell_price'],
+                strategy=strategy,
+                order_id=sell_result.get('order_id', '')
+            )
+            
             results['success'] = True
+            results['buy_trade_id'] = buy_trade_id
+            results['sell_trade_id'] = sell_trade_id
             print(f"   ✅ Arbitrage executed successfully!")
             
         except Exception as e:
