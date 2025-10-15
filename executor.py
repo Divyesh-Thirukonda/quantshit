@@ -1,6 +1,6 @@
 from typing import List, Dict
 import time
-from market_apis import get_market_api
+from platforms import get_market_api
 
 
 class TradeExecutor:

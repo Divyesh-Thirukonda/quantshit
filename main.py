@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List
 from dotenv import load_dotenv
 
-from market_apis import get_market_api
+from platforms import get_market_api
 from strategies import get_strategy
 from executor import TradeExecutor
 
