@@ -8,12 +8,14 @@ Each platform has its own module and all inherit from BaseMarketAPI.
 from .base import BaseMarketAPI
 from .polymarket import PolymarketAPI
 from .manifold import ManifoldAPI
+from .kalshi import KalshiAPI
 
 
 # Registry to easily add new platforms
 MARKET_APIS = {
     'polymarket': PolymarketAPI,
-    'manifold': ManifoldAPI
+    'manifold': ManifoldAPI,
+    'kalshi': KalshiAPI
 }
 
 
@@ -29,6 +31,7 @@ __all__ = [
     'BaseMarketAPI',
     'PolymarketAPI',
     'ManifoldAPI',
+    'KalshiAPI',
     'MARKET_APIS',
     'get_market_api'
 ]
