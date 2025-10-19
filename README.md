@@ -58,7 +58,7 @@ vercel
 ## How it works
 
 1. **Data Collection** (`market_apis.py`): Fetches recent markets from multiple prediction platforms
-2. **Market Matching** (`strategies.py`): Finds similar markets across platforms using text similarity
+2. **Market Matching** (`strategies/`): Finds similar markets across platforms using text similarity
 3. **Arbitrage Detection**: Calculates price spreads and identifies profitable opportunities  
 4. **Trade Execution** (`executor.py`): Places trades to capture the spread
 
@@ -79,13 +79,13 @@ vercel
 
 1. Create a new class inheriting from `BaseStrategy`
 2. Implement `find_opportunities()`
-3. Add to `STRATEGIES` registry in `strategies.py`
+3. Add to `STRATEGIES` registry in `strategies/` (exported from `strategies` package)
 
 ## Files
 
 - `main.py` - Main bot orchestration
 - `api.py` - FastAPI web interface for Vercel  
 - `market_apis.py` - Platform API clients
-- `strategies.py` - Trading strategies
+- `strategies/` - Trading strategies package
 - `executor.py` - Trade execution engine
 - `test_bot.py` - Testing script
