@@ -62,7 +62,7 @@ async def root():
             "GET /health": "Service health check",
             "GET /markets": "Get current market data",
             "GET /scan": "Scan for arbitrage opportunities",
-            "POST /execute/{opportunity_id}": "Execute arbitrage trade",
+            "POST /execute": "Execute arbitrage trade (requires platform, event_id, outcome, action, amount)",
             "POST /run-strategy": "Manual strategy run"
         },
         "example_usage": {
@@ -102,6 +102,7 @@ async def get_markets():
 
 
 @app.get("/scan") 
+@app.post("/scan")
 async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
     """Scan for arbitrage opportunities - compatible with Next.js frontend"""
     try:
