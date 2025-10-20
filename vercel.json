@@ -1,8 +1,6 @@
 {
-  "framework": "nextjs",
   "functions": {
     "api/index.py": {
-      "buildCommand": "npm run build",
       "runtime": "python3.9"
     }
   },
