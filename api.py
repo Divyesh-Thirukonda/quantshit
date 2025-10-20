@@ -6,12 +6,15 @@ No frontend - designed to be called by external applications.
 """
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from typing import Dict, List, Optional
+import asyncio
+from pydantic import BaseModel
 
 from src.engine.bot import ArbitrageBot
+from src.engine.event_driven import EventDrivenArbitrage, MarketEvent
 
 app = FastAPI(
     title="Quantshit Arbitrage Engine", 
@@ -19,14 +22,33 @@ app = FastAPI(
     description="Cross-venue prediction market arbitrage detection and execution API"
 )
 
-# Global bot instance
+# Global instances
 bot = None
+event_arbitrage = None
 
+class WebhookPayload(BaseModel):
+    """Webhook payload for new market events"""
+    platform: str
+    event_id: str
+    title: str
+    yes_price: float
+    no_price: float
+    volume: float = 0
+    liquidity: float = 0
+    event_type: str = "market_created"
+
+class AutoTradeConfig(BaseModel):
+    """Configuration for automated trading"""
+    enabled: bool
+    min_edge_bps: int = 100
+    max_trade_size: float = 100
+    platforms: List[str] = []
 
 @app.on_event("startup")
 async def startup_event():
-    global bot
+    global bot, event_arbitrage
     bot = ArbitrageBot()
+    event_arbitrage = EventDrivenArbitrage(min_edge_bps=100, max_trade_size=50)
 
 
 @app.get("/")
@@ -157,6 +179,145 @@ async def execute_trade(
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
         )
+
+
+@app.post("/webhook/market-created")
+async def market_created_webhook(payload: WebhookPayload, background_tasks: BackgroundTasks):
+    """Webhook endpoint for new market creation events"""
+    try:
+        # Convert webhook payload to MarketEvent
+        market_event = MarketEvent(
+            platform=payload.platform,
+            event_id=payload.event_id,
+            title=payload.title,
+            yes_price=payload.yes_price,
+            no_price=payload.no_price,
+            volume=payload.volume,
+            liquidity=payload.liquidity,
+            created_at=datetime.now(),
+            tags=event_arbitrage._extract_tags(payload.title)
+        )
+        
+        # Process in background to return quickly
+        background_tasks.add_task(process_new_market_event, market_event)
+        
+        return {"success": True, "message": "Market event received and processing"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/auto-trade/start")
+async def start_auto_trading(config: AutoTradeConfig, background_tasks: BackgroundTasks):
+    """Start automated event-driven trading"""
+    try:
+        if config.enabled:
+            # Update configuration
+            event_arbitrage.min_edge_bps = config.min_edge_bps
+            event_arbitrage.max_trade_size = config.max_trade_size
+            
+            # Start monitoring in background
+            background_tasks.add_task(start_event_monitoring)
+            
+            return {
+                "success": True, 
+                "message": "Auto-trading started",
+                "config": {
+                    "min_edge_bps": config.min_edge_bps,
+                    "max_trade_size": config.max_trade_size,
+                    "platforms": list(bot.api_keys.keys())
+                }
+            }
+        else:
+            return {"success": True, "message": "Auto-trading disabled"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/auto-trade/stop")
+async def stop_auto_trading():
+    """Stop automated trading"""
+    try:
+        await event_arbitrage._stop_all_listeners()
+        return {"success": True, "message": "Auto-trading stopped"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+@app.get("/auto-trade/status")
+async def get_auto_trade_status():
+    """Get current auto-trading status"""
+    try:
+        return {
+            "success": True,
+            "status": {
+                "active_listeners": len(event_arbitrage.active_listeners),
+                "platforms": list(event_arbitrage.active_listeners.keys()),
+                "executed_pairs": len(event_arbitrage.executed_pairs),
+                "min_edge_bps": event_arbitrage.min_edge_bps,
+                "max_trade_size": event_arbitrage.max_trade_size
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/simulate/new-market")
+async def simulate_new_market(title: str, yes_price: float, platform: str = "polymarket"):
+    """Simulate a new market for testing event-driven arbitrage"""
+    try:
+        # Create a simulated market event
+        market_event = MarketEvent(
+            platform=platform,
+            event_id=f"sim_{int(datetime.now().timestamp())}",
+            title=title,
+            yes_price=yes_price,
+            no_price=1.0 - yes_price,
+            volume=10000,
+            liquidity=5000,
+            created_at=datetime.now()
+        )
+        
+        # Process immediately
+        await event_arbitrage._handle_new_market_event(market_event)
+        
+        return {
+            "success": True,
+            "message": "Simulated market processed",
+            "market": {
+                "id": market_event.event_id,
+                "title": market_event.title,
+                "platform": market_event.platform,
+                "yes_price": market_event.yes_price
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+async def process_new_market_event(market_event: MarketEvent):
+    """Background task to process new market events"""
+    try:
+        await event_arbitrage._handle_new_market_event(market_event)
+    except Exception as e:
+        print(f"Error processing market event: {e}")
+
+
+async def start_event_monitoring():
+    """Background task to start event-driven monitoring"""
+    try:
+        await event_arbitrage.start_real_time_monitoring()
+    except Exception as e:
+        print(f"Error in event monitoring: {e}")
 
 
 if __name__ == "__main__":
