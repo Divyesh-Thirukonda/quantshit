@@ -1,9 +1,20 @@
 # Quantshit Arbitrage Engine
 
-**API-only** cross-venue prediction market arbitrage detection and execution engine.
+Cross-venue prediction market arbitrage detection and execution engine with event search capabilities.
 
-## Quick Start
+## 🚀 Quick Start
 
+### Automated Setup
+**Windows:** Run `setup.bat`  
+**Linux/Mac:** Run `./setup.sh`
+
+These setup scripts will:
+- Check Python installation (requires 3.8+)
+- Install dependencies from requirements.txt
+- Set up environment variables
+- Start the API server
+
+### Manual Setup
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -45,6 +56,30 @@ API will be available at `http://localhost:8000`
 ### GET /markets
 - **Description**: Get current market data from all platforms
 - **Returns**: Raw market data by platform
+
+### 🔍 NEW: Event Search & Execution
+
+#### GET /search
+- **Description**: Search for events across platforms
+- **Parameters**: 
+  - `keyword` (required): Search term
+  - `platforms` (optional): Comma-separated platform list
+  - `limit` (optional): Max results per platform
+- **Example**: `GET /search?keyword=trump&platforms=polymarket,kalshi&limit=5`
+
+#### POST /execute  
+- **Description**: Execute trades on specific events
+- **Body**: 
+  ```json
+  {
+    "platform": "polymarket",
+    "event_id": "poly_1", 
+    "outcome": "YES",
+    "action": "BUY",
+    "amount": 10,
+    "price": 0.65
+  }
+  ```
 
 ## Response Format
 
@@ -159,7 +194,28 @@ MIN_SPREAD=0.05        # Minimum spread threshold
 python -m uvicorn api:app --reload --port 8000
 ```
 
-### Production
+### Deploy to Vercel (Recommended)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Divyesh-Thirukonda/quantshit)
+
+**Manual deployment:**
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy (from project root)
+vercel --prod
+```
+
+**Environment Variables in Vercel:**
+- Add your API keys in the Vercel dashboard under Settings → Environment Variables:
+  - `POLYMARKET_API_KEY`
+  - `KALSHI_API_KEY` 
+  - `MANIFOLD_API_KEY`
+  - `MIN_VOLUME=1000`
+  - `MIN_SPREAD=0.05`
+
+### Other Production Options
 ```bash
 # Using gunicorn
 gunicorn -w 4 -k uvicorn.workers.UvicornWorker api:app --bind 0.0.0.0:8000

@@ -1,0 +1,16 @@
+{{
+
+  "functions": {  "framework": "nextjs",
+
+    "api/index.py": {  "buildCommand": "npm run build"
+
+      "runtime": "python3.9"}
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
+  ]
+}

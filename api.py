@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from main import ArbitrageBot
+from src.engine.bot import ArbitrageBot
 
 app = FastAPI(
     title="Quantshit Arbitrage Engine", 
@@ -127,18 +127,32 @@ async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
         )
 
 
-@app.post("/execute/{idea_id}")
-async def execute_trade(idea_id: str):
-    """Execute an arbitrage trade using existing executor"""
+@app.get("/search")
+async def search_events(keyword: str, platforms: str = None, limit: int = 10):
+    """Search for events across platforms"""
     try:
-        # Use your existing executor logic
-        # You'll need to modify this to work with idea_id
-        result = bot.executor.execute_arbitrage({"id": idea_id})
-        return {"success": True, "result": result}
+        platform_list = platforms.split(",") if platforms else None
+        results = bot.search_events(keyword, platform_list, limit)
+        return {"success": True, "results": results}
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
         )
+
+
+@app.post("/execute")
+async def execute_trade(
+    platform: str, 
+    event_id: str, 
+    outcome: str, 
+    action: str, 
+    amount: float, 
+    price: Optional[float] = None
+):
+    """Execute a trade on a specific event"""
+    try:
+        result = bot.execute_trade(platform, event_id, outcome, action, amount, price)
+        return {"success": True, "result": result}
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
