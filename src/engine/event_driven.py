@@ -11,8 +11,9 @@ import time
 from typing import Dict, List, Optional, Callable
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
-from src.engine.bot import ArbitrageBot
-from src.platforms import get_market_api
+
+from .bot import ArbitrageBot
+from ..platforms import get_market_api
 
 @dataclass
 class MarketEvent:

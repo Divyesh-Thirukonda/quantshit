@@ -2,11 +2,12 @@ import os
 import time
 from datetime import datetime
 from typing import Dict, List
+
 from dotenv import load_dotenv
 
+from .executor import TradeExecutor
 from ..platforms import get_market_api
 from ..strategies import get_strategy
-from .executor import TradeExecutor
 
 
 class ArbitrageBot:

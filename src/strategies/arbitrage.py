@@ -1,5 +1,5 @@
-from typing import List, Dict, Tuple, Optional
 import re
+from typing import Dict, List, Optional, Tuple
 
 
 class BaseStrategy:
