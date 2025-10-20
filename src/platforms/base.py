@@ -2,9 +2,9 @@
 Base classes and factory for prediction market APIs
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
 import requests
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional
 
 
 class BaseMarketAPI(ABC):

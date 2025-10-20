@@ -5,13 +5,13 @@ This module provides multiple approaches to find related events across platforms
 beyond simple title matching.
 """
 
-import requests
 import json
 import re
-from typing import List, Dict, Set, Tuple, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass
+import requests
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Set, Tuple
 
 @dataclass
 class EventEntity:
