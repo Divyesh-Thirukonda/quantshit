@@ -1,14 +1,23 @@
-""" "
-External API for use by dashboard team
+"""
+Quantshit Arbitrage Engine API
+
+Clean API-only interface for cross-venue prediction market arbitrage.
+No frontend - designed to be called by external applications.
 """
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from main import ArbitrageBot
 
-app = FastAPI(title="Arbitrage Bot API", version="1.0.0")
+app = FastAPI(
+    title="Quantshit Arbitrage Engine", 
+    version="1.0.0",
+    description="Cross-venue prediction market arbitrage detection and execution API"
+)
 
 # Global bot instance
 bot = None
@@ -22,7 +31,23 @@ async def startup_event():
 
 @app.get("/")
 async def root():
-    return {"message": "Arbitrage Bot API is running"}
+    """API information and usage"""
+    return {
+        "service": "Quantshit Arbitrage Engine",
+        "version": "1.0.0",
+        "description": "Cross-venue prediction market arbitrage detection and execution",
+        "endpoints": {
+            "GET /health": "Service health check",
+            "GET /markets": "Get current market data",
+            "GET /scan": "Scan for arbitrage opportunities",
+            "POST /execute/{opportunity_id}": "Execute arbitrage trade",
+            "POST /run-strategy": "Manual strategy run"
+        },
+        "example_usage": {
+            "scan": "GET /scan?size=250&min_edge=0.02",
+            "execute": "POST /execute/arb_123"
+        }
+    }
 
 
 @app.get("/health")
@@ -48,6 +73,72 @@ async def get_markets():
     try:
         markets_data = bot.collect_market_data()
         return {"success": True, "data": markets_data}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
+
+
+@app.get("/scan") 
+async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
+    """Scan for arbitrage opportunities - compatible with Next.js frontend"""
+    try:
+        # Collect market data from all platforms
+        markets_data = bot.collect_market_data()
+        
+        # Find opportunities using existing strategy  
+        opportunities = bot.strategy.find_opportunities(markets_data)
+        
+        # Filter by minimum edge
+        filtered_ops = [op for op in opportunities if op['spread'] >= min_edge]
+        
+        # Format for web interface
+        ideas = []
+        for i, opp in enumerate(filtered_ops):
+            ideas.append({
+                "id": f"arb_{i}",
+                "question": opp.get('outcome', 'Unknown Market'),
+                "yes_venue": opp['buy_market']['platform'],
+                "no_venue": opp['sell_market']['platform'], 
+                "yes_price": f"${opp['buy_market']['price']:.3f}",
+                "no_price": f"${1 - opp['sell_market']['price']:.3f}",
+                "size": f"${size}",
+                "edge_bps": f"{int(opp['spread'] * 10000)}",
+                "cost": f"${opp['trade_amount']:.2f}",
+                "profit": f"${opp['expected_profit']:.2f}"
+            })
+        
+        return {
+            "success": True,
+            "opportunities": ideas,
+            "meta": {
+                "scanned_markets": sum(len(markets) for markets in markets_data.values()),
+                "opportunities_found": len(filtered_ops),
+                "timestamp": datetime.utcnow().isoformat(),
+                "parameters": {
+                    "size": size,
+                    "min_edge": min_edge
+                }
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"error": str(e)}
+        )
+
+
+@app.post("/execute/{idea_id}")
+async def execute_trade(idea_id: str):
+    """Execute an arbitrage trade using existing executor"""
+    try:
+        # Use your existing executor logic
+        # You'll need to modify this to work with idea_id
+        result = bot.executor.execute_arbitrage({"id": idea_id})
+        return {"success": True, "result": result}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"success": False, "error": str(e)}
+        )
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
