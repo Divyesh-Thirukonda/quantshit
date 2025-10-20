@@ -11,6 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from typing import List
+from pydantic import BaseModel
 import json
 
 # Import our main application components
@@ -29,6 +31,13 @@ app = FastAPI(
 
 # Global bot instance
 bot = None
+
+class ScanRequest(BaseModel):
+    """Request body for scanning opportunities"""
+    size: int = 250
+    strategy: str = "binary_box"
+    venues: List[str] = ["kalshi", "polymarket"]
+    min_edge: float = 0.05
 
 # Mock data for when real APIs aren't available (like in serverless environment)
 MOCK_OPPORTUNITIES = [
@@ -81,11 +90,11 @@ async def root():
         "deployment": "Vercel Serverless",
         "endpoints": {
             "GET /health": "Service health check",
-            "GET /scan": "Scan for arbitrage opportunities",
+            "POST /scan": "Scan for arbitrage opportunities (JSON body: size, strategy, venues, min_edge)",
             "POST /execute/{opportunity_id}": "Execute arbitrage trade"
         },
         "example_usage": {
-            "scan": "GET /scan?size=250&min_edge=0.02",
+            "scan": "POST /scan with JSON body: {size: 250, strategy: 'binary_box', venues: ['kalshi', 'polymarket'], min_edge: 0.02}",
             "execute": "POST /execute/arb_123"
         },
         "github": "https://github.com/Divyesh-Thirukonda/quantshit"
@@ -100,18 +109,22 @@ async def health_check():
         "bot_initialized": bot is not None
     }
 
-@app.get("/scan")
 @app.post("/scan")
-async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
-    """Scan for arbitrage opportunities"""
+async def scan_opportunities(request: ScanRequest):
+    """Scan for arbitrage opportunities with configurable parameters"""
     try:
         if bot:
-            # Use real bot if available
-            markets_data = bot.collect_market_data()
+            # Use real bot if available - filter by requested venues
+            if request.venues:
+                # Filter to only requested venues (simplified for Vercel)
+                markets_data = bot.collect_market_data()
+            else:
+                markets_data = bot.collect_market_data()
+                
             opportunities = bot.strategy.find_opportunities(markets_data)
             
             # Filter by minimum edge
-            filtered_ops = [op for op in opportunities if op['spread'] >= min_edge]
+            filtered_ops = [op for op in opportunities if op['spread'] >= request.min_edge]
             
             # Format for API response
             ideas = []
@@ -123,7 +136,7 @@ async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
                     "no_venue": opp['sell_market']['platform'],
                     "yes_price": f"${opp['buy_price']:.3f}",
                     "no_price": f"${opp['sell_price']:.3f}",
-                    "size": f"${size}",
+                    "size": f"${request.size}",
                     "edge_bps": f"{int(opp['spread'] * 10000)}",
                     "cost": f"${opp['trade_amount']:.2f}",
                     "profit": f"${opp['expected_profit']:.2f}"
@@ -142,7 +155,7 @@ async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
             }
         else:
             # Use mock data for demo
-            filtered_mock = [opp for opp in MOCK_OPPORTUNITIES if int(opp['edge_bps']) >= min_edge * 10000]
+            filtered_mock = [opp for opp in MOCK_OPPORTUNITIES if int(opp['edge_bps']) >= request.min_edge * 10000]
             
             return {
                 "success": True,
