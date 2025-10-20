@@ -1,6 +1,7 @@
-from typing import List, Dict
 import time
-from platforms import get_market_api
+from typing import Dict, List
+
+from ..platforms import get_market_api
 
 
 class TradeExecutor:
