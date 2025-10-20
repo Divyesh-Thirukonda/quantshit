@@ -101,8 +101,7 @@ async def get_markets():
         )
 
 
-@app.get("/scan") 
-@app.post("/scan")
+@app.get("/scan")
 async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
     """Scan for arbitrage opportunities - compatible with Next.js frontend"""
     try:
