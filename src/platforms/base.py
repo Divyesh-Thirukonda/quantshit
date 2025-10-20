@@ -58,24 +58,3 @@ class BaseMarketAPI(ABC):
             return self.place_sell_order(event_id, outcome, amount, price)
         else:
             return {'success': False, 'error': f'Invalid action: {action}'}
-
-
-# Platform imports
-from .polymarket import PolymarketAPI
-from .kalshi import KalshiAPI  
-from .manifold import ManifoldAPI
-
-# Registry
-PLATFORM_APIS = {
-    'polymarket': PolymarketAPI,
-    'kalshi': KalshiAPI,
-    'manifold': ManifoldAPI
-}
-
-
-def get_market_api(platform: str, api_key: str = None) -> BaseMarketAPI:
-    """Factory function to get market API instance"""
-    if platform not in PLATFORM_APIS:
-        raise ValueError(f"Unsupported platform: {platform}")
-    
-    return PLATFORM_APIS[platform](api_key)
