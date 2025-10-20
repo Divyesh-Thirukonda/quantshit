@@ -100,8 +100,7 @@ async def health_check():
         "bot_initialized": bot is not None
     }
 
-@app.get("/scan") 
-@app.post("/scan")
+@app.get("/scan")
 async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
     """Scan for arbitrage opportunities"""
     try:
