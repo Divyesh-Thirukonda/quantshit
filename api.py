@@ -44,6 +44,13 @@ class AutoTradeConfig(BaseModel):
     max_trade_size: float = 100
     platforms: List[str] = []
 
+class ScanRequest(BaseModel):
+    """Request body for scanning opportunities"""
+    size: int = 250
+    strategy: str = "binary_box"
+    venues: List[str] = ["kalshi", "polymarket"]
+    min_edge: float = 0.05
+
 @app.on_event("startup")
 async def startup_event():
     global bot, event_arbitrage
@@ -61,7 +68,7 @@ async def root():
         "endpoints": {
             "GET /health": "Service health check",
             "GET /markets": "Get current market data",
-            "GET /scan": "Scan for arbitrage opportunities",
+            "POST /scan": "Scan for arbitrage opportunities (JSON body: size, strategy, venues, min_edge)",
             "POST /execute": "Execute arbitrage trade (requires platform, event_id, outcome, action, amount)",
             "POST /run-strategy": "Manual strategy run"
         },
@@ -101,18 +108,27 @@ async def get_markets():
         )
 
 
-@app.get("/scan")
-async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
-    """Scan for arbitrage opportunities - compatible with Next.js frontend"""
+@app.post("/scan")
+async def scan_opportunities(request: ScanRequest):
+    """Scan for arbitrage opportunities with configurable parameters"""
     try:
-        # Collect market data from all platforms
-        markets_data = bot.collect_market_data()
+        # Collect market data from specified venues only
+        if request.venues:
+            # Filter to only requested venues
+            available_venues = [v for v in request.venues if v in bot.api_keys]
+            markets_data = {}
+            for venue in available_venues:
+                venue_markets = bot.platforms[venue].get_recent_markets()
+                markets_data[venue] = venue_markets
+        else:
+            # Use all platforms
+            markets_data = bot.collect_market_data()
         
-        # Find opportunities using existing strategy  
+        # Find opportunities using specified strategy
         opportunities = bot.strategy.find_opportunities(markets_data)
         
         # Filter by minimum edge
-        filtered_ops = [op for op in opportunities if op['spread'] >= min_edge]
+        filtered_ops = [op for op in opportunities if op['spread'] >= request.min_edge]
         
         # Format for web interface
         ideas = []
@@ -124,7 +140,7 @@ async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
                 "no_venue": opp['sell_market']['platform'], 
                 "yes_price": f"${opp['buy_price']:.3f}",
                 "no_price": f"${opp['sell_price']:.3f}",
-                "size": f"${size}",
+                "size": f"${request.size}",
                 "edge_bps": f"{int(opp['spread'] * 10000)}",
                 "cost": f"${opp['trade_amount']:.2f}",
                 "profit": f"${opp['expected_profit']:.2f}"
@@ -138,8 +154,10 @@ async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
                 "opportunities_found": len(filtered_ops),
                 "timestamp": datetime.utcnow().isoformat(),
                 "parameters": {
-                    "size": size,
-                    "min_edge": min_edge
+                    "size": request.size,
+                    "strategy": request.strategy,
+                    "venues": request.venues,
+                    "min_edge": request.min_edge
                 }
             }
         }

@@ -101,6 +101,7 @@ async def health_check():
     }
 
 @app.get("/scan")
+@app.post("/scan")
 async def scan_opportunities(size: int = 250, min_edge: float = 0.05):
     """Scan for arbitrage opportunities"""
     try:
