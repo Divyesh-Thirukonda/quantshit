@@ -92,7 +92,7 @@ API will be available at `http://localhost:8000`
       "id": "arb_0",
       "question": "Trump Wins 2024 Presidential Election",
       "yes_venue": "polymarket",
-      "no_venue": "manifold", 
+      "no_venue": "kalshi", 
       "yes_price": "$0.520",
       "no_price": "$0.465",
       "size": "$250",
@@ -167,7 +167,6 @@ curl -X POST "http://localhost:8000/execute/arb_0"
 # Required API Keys
 POLYMARKET_API_KEY=your_polymarket_key
 KALSHI_API_KEY=your_kalshi_key  
-MANIFOLD_API_KEY=your_manifold_key
 
 # Optional Configuration
 MIN_VOLUME=1000        # Minimum market volume
@@ -177,7 +176,7 @@ MIN_SPREAD=0.05        # Minimum spread threshold
 ## Architecture
 
 - **Pure Python API** - FastAPI with real market connections
-- **Multi-platform** - Polymarket, Kalshi, Manifold Markets
+- **Multi-platform** - Polymarket, Kalshi
 - **Real execution** - Actual trade placement via platform APIs
 - **Extensible** - Easy to add new platforms and strategies
 
@@ -211,7 +210,7 @@ vercel --prod
 - Add your API keys in the Vercel dashboard under Settings → Environment Variables:
   - `POLYMARKET_API_KEY`
   - `KALSHI_API_KEY` 
-  - `MANIFOLD_API_KEY`
+
   - `MIN_VOLUME=1000`
   - `MIN_SPREAD=0.05`
 

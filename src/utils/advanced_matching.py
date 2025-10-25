@@ -148,8 +148,6 @@ class EventMatcher:
                 results[platform] = self._search_polymarket(event_description)
             elif platform == 'kalshi':
                 results[platform] = self._search_kalshi(event_description)
-            elif platform == 'manifold':
-                results[platform] = self._search_manifold(event_description)
         
         return results
 
@@ -178,20 +176,6 @@ class EventMatcher:
             # Kalshi search would go here
             # url = "https://trading-api.kalshi.com/trade-api/v2/markets/search"
             return []  # Placeholder
-        except:
-            return []
-
-    def _search_manifold(self, query: str) -> List[Dict]:
-        """Search Manifold API for related markets"""
-        try:
-            url = "https://manifold.markets/api/v0/search-markets"
-            params = {'terms': query, 'limit': 20}
-            
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return []
         except:
             return []
 
