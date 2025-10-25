@@ -1,36 +1,27 @@
 """
 Minimal Vercel deployment test for Quantshit
 """
+from http.server import BaseHTTPRequestHandler
 import json
 from datetime import datetime
 
-def handler(event, context):
-    """Simple HTTP handler for Vercel"""
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        },
-        'body': json.dumps({
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        response = {
             'message': 'Quantshit Arbitrage Engine API',
             'version': '2.0.0',
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'note': 'Minimal deployment test - imports disabled for now'
-        })
-    }
-
-# For FastAPI compatibility, create an app-like interface
-class SimpleApp:
-    def __call__(self, scope, receive, send):
-        # ASGI app interface
-        return handler(scope, None)
-
-app = SimpleApp()
-
-# For direct Vercel calling
-def lambda_handler(event, context):
-    return handler(event, context)
+            'path': self.path,
+            'note': 'Minimal deployment test - working!'
+        }
+        
+        self.wfile.write(json.dumps(response).encode())
+        
+    def do_POST(self):
+        self.do_GET()  # Same response for now
