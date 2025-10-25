@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from .executor import TradeExecutor
 from ..platforms import get_market_api
 from ..strategies import get_strategy
+from ..types import ArbitrageOpportunity
 
 
 class ArbitrageBot:
@@ -233,28 +234,25 @@ class ArbitrageBot:
         else:
             print("No profitable arbitrage opportunities found.")
     
-    def find_opportunities(self, markets_data: Dict[str, List[Dict]]) -> List[Dict]:
+    def find_opportunities(self, markets_data: Dict[str, List[Dict]]) -> List:
         """Find arbitrage opportunities using the strategy with portfolio awareness"""
         print(f"\n🎯 Analyzing arbitrage opportunities...")
         
         # Get current portfolio summary for planning
         portfolio_summary = self.executor.get_portfolio_summary()
         
-        # Use portfolio-aware strategy
+        # Use portfolio-aware strategy - now returns ArbitrageOpportunity objects
         opportunities = self.strategy.find_opportunities(markets_data, portfolio_summary)
         
         if opportunities:
             print(f"   Final selected opportunities: {len(opportunities)}")
-            # Show top opportunities
+            # Show top opportunities using typed object properties
             for i, opp in enumerate(opportunities[:3]):
-                if 'position_size' in opp:  # Planned opportunity
-                    size = opp['position_size']
-                    expected_return = opp['expected_profit'] * size
-                    print(f"   {i+1}. {opp['outcome']} | Size: {size} shares | "
-                          f"Spread: {opp['spread']:.3f} | Expected: ${expected_return:.2f}")
-                else:  # Simple opportunity
-                    print(f"   {i+1}. {opp['outcome']} | Spread: {opp['spread']:.3f} | "
-                          f"Profit: ${opp['expected_profit']:.2f}")
+                size = opp.recommended_quantity or opp.max_quantity
+                expected_return = opp.expected_profit_per_share * size
+                print(f"   {i+1}. {opp.outcome.value} | Size: {size} shares | "
+                      f"Spread: {opp.spread:.3f} | Expected: ${expected_return:.2f}")
+                print(f"      Risk: {opp.risk_level.value} | Confidence: {opp.confidence_score:.2f}")
         else:
             print(f"   No arbitrage opportunities found")
         

@@ -27,8 +27,8 @@ class KalshiAPI(BaseMarketAPI):
                     'id': 'kalshi_1',
                     'platform': 'kalshi',
                     'title': 'Trump to win 2024 Presidential Election',
-                    'yes_price': 0.62,
-                    'no_price': 0.38,
+                    'yes_price': 0.42,
+                    'no_price': 0.58,
                     'volume': 75000,
                     'liquidity': 40000
                 },

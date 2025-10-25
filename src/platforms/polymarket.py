@@ -26,7 +26,7 @@ class PolymarketAPI(BaseMarketAPI):
                 {
                     'id': 'poly_1',
                     'platform': 'polymarket',
-                    'title': 'Will Trump win the 2024 election?',
+                    'title': 'Will Trump win the 2024 presidential election?',
                     'yes_price': 0.65,
                     'no_price': 0.35,
                     'volume': 50000,
