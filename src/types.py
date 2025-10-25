@@ -76,6 +76,20 @@ class ExecutionMode(Enum):
     FOK = "fok"  # Fill or Kill
 
 
+class OrderSide(Enum):
+    """Order side (alias for OrderType for compatibility)"""
+    BUY = "buy"
+    SELL = "sell"
+
+
+class TradePriority(Enum):
+    """Trade execution priority levels"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
 # Core Market Data Types
 @dataclass
 class Quote:
