@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 def run_manual_tests():
     """Run tests manually without pytest (in case pytest is not available)"""
-    print("🧪 Running Quantshit Arbitrage Engine Test Suite")
+    print("Running Quantshit Arbitrage Engine Test Suite")
     print("=" * 60)
     
     test_results = []
@@ -104,7 +104,7 @@ def run_manual_tests():
 
 def run_integration_test():
     """Run a simple integration test of the main system"""
-    print("\n🚀 Running Integration Test")
+    print("\nRunning Integration Test")
     print("-" * 40)
     
     try:
@@ -121,7 +121,7 @@ def run_integration_test():
         print("    ✅ Backward compatibility working")
         
         # Test basic functionality with mocked environment
-        print("  🧪 Testing basic functionality...")
+        print("  Testing basic functionality...")
         import os
         from unittest.mock import patch
         
@@ -156,7 +156,7 @@ def run_with_pytest():
             'tests/', '-v', '--tb=short'
         ], capture_output=True, text=True, cwd=os.path.dirname(__file__))
         
-        print("🧪 Pytest Output:")
+        print("Pytest Output:")
         print(result.stdout)
         if result.stderr:
             print("⚠️ Pytest Errors:")
