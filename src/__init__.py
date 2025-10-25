@@ -2,6 +2,6 @@
 from .engine import ArbitrageBot, TradeExecutor
 from .strategies import get_strategy
 from .platforms import get_market_api
-from . import types, adapters
+from . import types
 
-__all__ = ['ArbitrageBot', 'TradeExecutor', 'get_strategy', 'get_market_api', 'types', 'adapters']
+__all__ = ['ArbitrageBot', 'TradeExecutor', 'get_strategy', 'get_market_api', 'types']

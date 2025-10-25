@@ -22,10 +22,10 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import our comprehensive trading system
+# Import our comprehensive trading system (using new clean architecture)
 try:
-    from src.engine.bot import ArbitrageBot
-    from src.engine.executor import TradeExecutor
+    from src.coordinators.trading_orchestrator import TradingOrchestrator as ArbitrageBot
+    from src.coordinators.execution_coordinator import ExecutionCoordinator as TradeExecutor
     from src.engine.position_manager import PositionManager, PositionManagerConfig
     from src.types import (
         PositionManagerConfig, TradingConfig, Platform, Outcome, OrderSide, TradePriority,
