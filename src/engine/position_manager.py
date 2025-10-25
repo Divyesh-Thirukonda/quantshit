@@ -229,7 +229,7 @@ class PositionManager:
         """Print detailed portfolio status"""
         summary = self.get_portfolio_summary()
         
-        print(f"\n📊 Position Manager Status:")
+        print(f"\nPosition Manager Status:")
         print(f"   Active Positions: {summary['capacity_used']}")
         print(f"   Total Value: ${summary['total_market_value']:.2f}")
         print(f"   Unrealized P&L: ${summary['total_unrealized_pnl']:.2f} ({summary['total_unrealized_pnl_pct']:.1f}%)")

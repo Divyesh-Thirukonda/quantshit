@@ -28,7 +28,7 @@ def get_market_api(platform: str, api_key: str = None) -> BaseMarketAPI:
             api_key = os.getenv('KALSHI_API_KEY')
     
     # Always return mock APIs for paper trading
-    print(f"   📄 Creating paper trading API for {platform}")
+    print(f"   Creating paper trading API for {platform}")
     return PLATFORM_APIS[platform](api_key)
 
 

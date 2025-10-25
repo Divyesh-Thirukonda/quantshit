@@ -30,11 +30,11 @@ class TradingLogger:
     def log_startup(self):
         """Log startup information and configuration"""
         print("Quantshit Arbitrage Engine - Paper Trading Mode")
-        print("   📄 This is a simulation-only system with virtual money")
+        print("   This is a simulation-only system with virtual money")
         print(f"   Platforms: {self.platforms} (simulated)")
         print(f"   Min volume: ${self.min_volume}")
         print(f"   Min spread: {self.min_spread}")
-        print(f"   💰 Starting with $10,000 virtual money per platform")
+        print(f"   Starting with $10,000 virtual money per platform")
     
     def log_cycle_start(self):
         """Log the start of a new trading cycle"""
