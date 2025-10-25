@@ -87,7 +87,7 @@ def run_manual_tests():
     
     # Print summary
     print("\n" + "=" * 60)
-    print("📊 TEST SUMMARY")
+    print("TEST SUMMARY")
     print("=" * 60)
     print(f"Total Tests: {total_tests}")
     print(f"Passed: {passed_tests} ✅")

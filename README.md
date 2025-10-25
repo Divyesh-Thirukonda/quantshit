@@ -48,7 +48,7 @@ Quantshit is a **3-layer architecture** designed for speed and reliability:
 ```
 quantshit/
 ├── src/
-│   ├── collectors/          # 📊 Market data collection
+│   ├── collectors/          # Market data collection
 │   │   └── market_data_collector.py
 │   ├── strategies/          # 🎯 Trading strategies  
 │   │   ├── arbitrage.py     # Core arbitrage detection
@@ -139,7 +139,7 @@ python api.py  # Starts on http://localhost:8000
 5. Submit PR
 
 **Current Focus Areas**: 
-- 📊 New exchange integrations
+- New exchange integrations
 - Advanced opportunity detection  
 - ⚡ Execution optimization
 - Enhanced risk management

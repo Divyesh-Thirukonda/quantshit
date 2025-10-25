@@ -45,7 +45,7 @@ class ExecutionCoordinator:
             print(f"✓ Initialized {platform} execution (Paper Trading)")
             print(f"  └─ Virtual Balance: ${self.portfolio_tracker.virtual_balances[platform]:,.2f}")
         
-        print(f"📊 Position Manager initialized: Max {self.position_manager.config.max_open_positions} positions")
+        print(f"Position Manager initialized: Max {self.position_manager.config.max_open_positions} positions")
     
     def get_virtual_balances(self) -> Dict[str, float]:
         """Get current virtual balances"""

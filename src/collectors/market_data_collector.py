@@ -40,7 +40,7 @@ class MarketDataCollector:
         Returns:
             Dictionary mapping platform names to lists of market data
         """
-        print(f"\n📊 Collecting market data...")
+        print(f"\nCollecting market data...")
         
         markets_by_platform = {}
         

@@ -112,7 +112,7 @@ class TradingOrchestrator:
         
         # Show portfolio summary after run
         portfolio = self.executor.get_portfolio_summary()
-        print(f"\n💰 Portfolio Summary:")
+        print(f"\nPortfolio Summary:")
         for platform, data in portfolio.items():
             if platform != 'total_portfolio_value':
                 print(f"   {platform}:")
@@ -146,7 +146,7 @@ class TradingOrchestrator:
                     api = self.data_collector.apis[platform]
                     events = api.find_event(keyword, limit)
                     results[platform] = events
-                    print(f"   📊 {platform}: Found {len(events)} events")
+                    print(f"   {platform}: Found {len(events)} events")
                 else:
                     print(f"   ❌ {platform}: API not initialized")
                     results[platform] = []
@@ -233,7 +233,7 @@ class TradingOrchestrator:
         total_current = portfolio['total_portfolio_value']
         total_pnl = total_current - total_initial
         
-        print(f"📊 Overall Performance:")
+        print(f"Overall Performance:")
         print(f"   Initial Value: ${total_initial:,.2f}")
         print(f"   Current Value: ${total_current:,.2f}")
         pnl_color = "+" if total_pnl >= 0 else ""
