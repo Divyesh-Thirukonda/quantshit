@@ -180,9 +180,7 @@ async def api_health():
     return await health_check()
 
 # Vercel entry point
-def handler(request):
-    """Vercel serverless function handler"""
-    return app
+app = app
 
 # For local development
 if __name__ == "__main__":
