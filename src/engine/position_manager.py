@@ -37,6 +37,10 @@ class PositionManager:
         """Check if we can open new positions"""
         return self.get_position_count() < self.config.max_open_positions
     
+    def can_add_position(self) -> bool:
+        """Alias for has_capacity for backward compatibility"""
+        return self.has_capacity()
+    
     def add_position(self, position: Position):
         """Add a new position to active tracking"""
         if not position.position_id:

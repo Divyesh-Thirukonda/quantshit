@@ -14,7 +14,6 @@ import asyncio
 from pydantic import BaseModel
 
 from src.engine.bot import ArbitrageBot
-from src.engine.event_driven import EventDrivenArbitrage, MarketEvent
 
 app = FastAPI(
     title="Quantshit Arbitrage Engine", 
@@ -24,7 +23,6 @@ app = FastAPI(
 
 # Global instances
 bot = None
-event_arbitrage = None
 
 class WebhookPayload(BaseModel):
     """Webhook payload for new market events"""
@@ -53,9 +51,8 @@ class ScanRequest(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    global bot, event_arbitrage
+    global bot
     bot = ArbitrageBot()
-    event_arbitrage = EventDrivenArbitrage(min_edge_bps=100, max_trade_size=50)
 
 
 @app.get("/")
