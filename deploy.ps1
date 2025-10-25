@@ -24,7 +24,7 @@ switch ($choice) {
         Write-Host "🧪 Deploying Paper Trading Environment..." -ForegroundColor Blue
         
         # Deploy with paper trading settings
-        vercel --prod `
+        vercel deploy --prod `
             --env TRADING_MODE=paper `
             --env ENVIRONMENT=development `
             --env MIN_VOLUME=1000 `
@@ -79,7 +79,7 @@ switch ($choice) {
         }
         
         # Deploy with live trading settings
-        vercel --prod `
+        vercel deploy --prod `
             --env TRADING_MODE=live `
             --env ENVIRONMENT=production `
             --env MIN_VOLUME=1000 `

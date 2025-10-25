@@ -8,7 +8,7 @@ import os
 # Add the parent directory to the path so we can import our modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from typing import List
@@ -19,7 +19,8 @@ import json
 try:
     from src.engine.bot import ArbitrageBot
     from src.config.environment import env
-except ImportError:
+except ImportError as e:
+    print(f"Import error: {e}")
     # Fallback for Vercel environment where some imports might fail
     ArbitrageBot = None
     env = None
@@ -242,6 +243,16 @@ async def execute_trade(idea_id: str):
 
 # Export the FastAPI app for Vercel
 handler = app
+
+# For local development
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# Vercel serverless handler
+def handler(request: Request):
+    """Main handler for Vercel"""
+    return app
 
 # For local development
 if __name__ == "__main__":
