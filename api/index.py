@@ -157,8 +157,7 @@ async def execute_opportunity(opportunity_id: str):
         }
 
 # This is the handler that Vercel will call
-def handler(request):
-    return app
+app = app
 
 # For local development
 if __name__ == "__main__":
