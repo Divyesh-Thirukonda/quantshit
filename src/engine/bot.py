@@ -24,7 +24,6 @@ class ArbitrageBot:
         # API Keys
         self.api_keys = {
             'polymarket': os.getenv('POLYMARKET_API_KEY'),
-            'manifold': os.getenv('MANIFOLD_API_KEY'),
             'kalshi': os.getenv('KALSHI_API_KEY')
         }
         
