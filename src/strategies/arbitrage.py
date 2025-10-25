@@ -12,7 +12,7 @@ class BaseStrategy:
     def __init__(self, name: str):
         self.name = name
     
-    def find_opportunities(self, markets_by_platform: Dict[str, List[Dict]]) -> List[Dict]:
+    def find_opportunities(self, markets_by_platform: Dict[str, List[Dict]]) -> List[ArbitrageOpportunity]:
         """Find arbitrage opportunities across platforms"""
         raise NotImplementedError
 
@@ -38,7 +38,7 @@ class ArbitrageStrategy(BaseStrategy):
             self.risk_manager = None
     
     def find_opportunities(self, markets_by_platform: Dict[str, List], 
-                          portfolio_summary: Dict = None) -> List:
+                          portfolio_summary: Dict = None) -> List[ArbitrageOpportunity]:
         """Find arbitrage opportunities with optional portfolio-aware planning
         
         Args:
@@ -46,7 +46,7 @@ class ArbitrageStrategy(BaseStrategy):
             portfolio_summary: Current portfolio state for planning
             
         Returns:
-            List of opportunities (ArbitrageOpportunity objects or dicts for compatibility)
+            List of ArbitrageOpportunity objects
         """
         # Convert input to typed format if needed
         typed_markets = {}
@@ -61,10 +61,8 @@ class ArbitrageStrategy(BaseStrategy):
         # Find opportunities using typed system
         typed_opportunities = self._find_typed_opportunities(typed_markets, portfolio_summary)
         
-        # Convert back to legacy format for backwards compatibility
-        legacy_opportunities = OpportunityAdapter.to_dict_list(typed_opportunities)
-        
-        return legacy_opportunities
+        # Return typed objects directly (no more legacy conversion!)
+        return typed_opportunities
     
     def _find_typed_opportunities(self, markets_by_platform: Dict[str, List[Market]], 
                                 portfolio_summary: Dict = None) -> List[ArbitrageOpportunity]:

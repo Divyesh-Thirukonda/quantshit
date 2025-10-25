@@ -2,6 +2,7 @@ import time
 from typing import Dict, List
 
 from ..platforms import get_market_api
+from ..types import ArbitrageOpportunity
 
 
 class TradeExecutor:
@@ -139,12 +140,25 @@ class TradeExecutor:
             'value': shares * price
         })
     
-    def execute_arbitrage(self, opportunity: Dict) -> Dict:
-        """Execute an arbitrage opportunity"""
-        print(f"\n🔄 Executing arbitrage opportunity:")
-        print(f"   Outcome: {opportunity['outcome']}")
-        print(f"   Expected profit: ${opportunity['expected_profit']:.4f}")
-        print(f"   Spread: {opportunity['spread']:.4f}")
+    def execute_arbitrage(self, opportunity) -> Dict:
+        """Execute an arbitrage opportunity (accepts both ArbitrageOpportunity objects and dicts)"""
+        # Handle both typed objects and legacy dicts
+        if hasattr(opportunity, 'to_legacy_dict'):
+            # ArbitrageOpportunity object - convert to dict for execution
+            opp_dict = opportunity.to_legacy_dict()
+            print(f"\n🔄 Executing arbitrage opportunity (ID: {opportunity.id}):")
+            print(f"   Outcome: {opportunity.outcome.value}")
+            print(f"   Expected profit per share: ${opportunity.expected_profit_per_share:.4f}")
+            print(f"   Spread: {opportunity.spread:.4f}")
+            print(f"   Risk Level: {opportunity.risk_level.value}")
+            print(f"   Confidence: {opportunity.confidence_score:.2f}")
+        else:
+            # Legacy dict format
+            opp_dict = opportunity
+            print(f"\n🔄 Executing arbitrage opportunity:")
+            print(f"   Outcome: {opp_dict['outcome']}")
+            print(f"   Expected profit: ${opp_dict['expected_profit']:.4f}")
+            print(f"   Spread: {opp_dict['spread']:.4f}")
         
         results = {
             'success': False,
@@ -154,13 +168,23 @@ class TradeExecutor:
         }
         
         try:
-            # Get trade details with planned sizing
-            buy_market = opportunity['buy_market']
-            sell_market = opportunity['sell_market']
-            outcome = opportunity['outcome']
-            
-            # Use planned position size if available, otherwise default
-            amount = opportunity.get('position_size', opportunity.get('trade_amount', 100))
+            # Get trade details with planned sizing - works with both types
+            if hasattr(opportunity, 'buy_market'):
+                # ArbitrageOpportunity object
+                buy_market = opportunity.buy_market.to_dict()
+                sell_market = opportunity.sell_market.to_dict()
+                outcome = opportunity.outcome.value
+                amount = opportunity.recommended_quantity or opportunity.max_quantity
+                buy_price = opportunity.buy_price
+                sell_price = opportunity.sell_price
+            else:
+                # Legacy dict format
+                buy_market = opportunity['buy_market']
+                sell_market = opportunity['sell_market']
+                outcome = opportunity['outcome']
+                amount = opportunity.get('position_size', opportunity.get('trade_amount', 100))
+                buy_price = opportunity['buy_price']
+                sell_price = opportunity['sell_price']
             
             # Get APIs
             buy_platform = buy_market['platform']
@@ -178,12 +202,12 @@ class TradeExecutor:
             sell_api = self.apis[sell_platform]
             
             # Execute buy order
-            print(f"   📈 Buying {amount} shares of {outcome} on {buy_platform} at ${opportunity['buy_price']:.4f}")
+            print(f"   📈 Buying {amount} shares of {outcome} on {buy_platform} at ${buy_price:.4f}")
             buy_result = buy_api.place_buy_order(
                 buy_market['id'],
                 outcome,
                 amount,
-                opportunity['buy_price']
+                buy_price
             )
             results['buy_result'] = buy_result
             
@@ -197,7 +221,7 @@ class TradeExecutor:
                 buy_market['id'], 
                 outcome, 
                 amount, 
-                opportunity['buy_price'], 
+                buy_price, 
                 'buy'
             )
             
@@ -205,12 +229,12 @@ class TradeExecutor:
             time.sleep(1)
             
             # Execute sell order
-            print(f"   📉 Selling {amount} shares of {outcome} on {sell_platform} at ${opportunity['sell_price']:.4f}")
+            print(f"   📉 Selling {amount} shares of {outcome} on {sell_platform} at ${sell_price:.4f}")
             sell_result = sell_api.place_sell_order(
                 sell_market['id'],
                 outcome,
                 amount,
-                opportunity['sell_price']
+                sell_price
             )
             results['sell_result'] = sell_result
             
@@ -224,7 +248,7 @@ class TradeExecutor:
                 sell_market['id'], 
                 outcome, 
                 amount, 
-                opportunity['sell_price'], 
+                sell_price, 
                 'sell'
             )
             
@@ -242,8 +266,8 @@ class TradeExecutor:
         
         return results
     
-    def execute_opportunities(self, opportunities: List[Dict], max_trades: int = 3) -> List[Dict]:
-        """Execute multiple arbitrage opportunities"""
+    def execute_opportunities(self, opportunities: List, max_trades: int = 3) -> List[Dict]:
+        """Execute multiple arbitrage opportunities (handles both typed objects and dicts)"""
         if not opportunities:
             print("No arbitrage opportunities found.")
             return []
@@ -256,13 +280,21 @@ class TradeExecutor:
         for i, opportunity in enumerate(opportunities[:max_trades]):
             print(f"\n--- Trade {i + 1}/{min(len(opportunities), max_trades)} ---")
             
-            # Show opportunity details
-            buy_market = opportunity['buy_market']
-            sell_market = opportunity['sell_market']
-            
-            print(f"Market Match:")
-            print(f"  Buy:  [{buy_market['platform']}] {buy_market['title'][:60]}...")
-            print(f"  Sell: [{sell_market['platform']}] {sell_market['title'][:60]}...")
+            # Show opportunity details - handle both types
+            if hasattr(opportunity, 'buy_market'):
+                # ArbitrageOpportunity object
+                buy_market = opportunity.buy_market
+                sell_market = opportunity.sell_market
+                print(f"Market Match:")
+                print(f"  Buy:  [{buy_market.platform.value}] {buy_market.title[:60]}...")
+                print(f"  Sell: [{sell_market.platform.value}] {sell_market.title[:60]}...")
+            else:
+                # Legacy dict format
+                buy_market = opportunity['buy_market']
+                sell_market = opportunity['sell_market']
+                print(f"Market Match:")
+                print(f"  Buy:  [{buy_market['platform']}] {buy_market['title'][:60]}...")
+                print(f"  Sell: [{sell_market['platform']}] {sell_market['title'][:60]}...")
             
             # Execute the trade
             result = self.execute_arbitrage(opportunity)
