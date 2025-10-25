@@ -103,11 +103,11 @@ class TradingOrchestrator:
                 print("Waiting 1 hour for next cycle...")
                 time.sleep(3600)  # Wait 1 hour
         except KeyboardInterrupt:
-            print("\n🛑 Bot stopped by user")
+            print("\nBot stopped by user")
     
     def run_once(self):
         """Run the bot once for testing"""
-        print("🧪 Running bot once for testing...")
+        print("Running bot once for testing...")
         self.run_strategy_cycle()
         
         # Show portfolio summary after run

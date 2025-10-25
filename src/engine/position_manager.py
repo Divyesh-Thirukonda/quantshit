@@ -244,4 +244,4 @@ class PositionManager:
         if summary['underperforming_count'] > 0:
             print(f"   ⚠️  {summary['underperforming_count']} underperforming positions")
         if summary['forced_exits_needed'] > 0:
-            print(f"   🚨 {summary['forced_exits_needed']} positions need forced exit")
+            print(f"   WARNING: {summary['forced_exits_needed']} positions need forced exit")

@@ -27,17 +27,17 @@ Quantshit is a **3-layer architecture** designed for speed and reliability:
 
 ## Architecture Tour
 
-### 🔄 Data Pipeline Layer
+### Data Pipeline Layer
 - **`src/collectors/`** - Multi-platform market data aggregation
 - **`src/platforms/`** - Platform-specific API adapters (Polymarket, Kalshi)
 - **`src/adapters.py`** - Unified data format conversion
 
-### 🧠 Strategy Engine Layer  
+### Strategy Engine Layer  
 - **`src/strategies/arbitrage.py`** - Opportunity detection algorithms
 - **`src/utils/advanced_matching.py`** - Smart market matching logic
 - **`src/engine/event_driven.py`** - Real-time strategy execution
 
-### ⚡ Execution Engine Layer
+### Execution Engine Layer
 - **`src/executors/`** - Order placement and management
 - **`src/engine/position_manager.py`** - Position sizing, stop-loss, take-profit
 - **`src/trackers/`** - Portfolio and trade tracking
@@ -69,14 +69,14 @@ quantshit/
 │   │   ├── kalshi.py        # Kalshi API integration
 │   │   ├── polymarket.py    # Polymarket API integration
 │   │   └── registry.py      # Platform registry
-│   ├── utils/               # 🛠️ Utilities
+│   ├── utils/               # Utilities
 │   │   └── advanced_matching.py
 │   ├── types.py             # 📋 Type definitions
 │   └── adapters.py          # 🔄 Data adapters
 ├── api/                     # 🌐 REST API
 │   └── index.py
 ├── tests/                   # ✅ Comprehensive test suite
-├── main.py                  # 🚀 CLI entry point
+├── main.py                  # CLI entry point
 ├── api.py                   # 🌐 FastAPI server
 └── requirements.txt
 ```
@@ -140,9 +140,9 @@ python api.py  # Starts on http://localhost:8000
 
 **Current Focus Areas**: 
 - 📊 New exchange integrations
-- 🧠 Advanced opportunity detection  
+- Advanced opportunity detection  
 - ⚡ Execution optimization
-- 🛡️ Enhanced risk management
+- Enhanced risk management
 
 ---
 **⚠️ Paper Trading Only**: Currently configured for simulation. Real trading requires API key setup and risk management review.

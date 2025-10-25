@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up Arbitrage Bot for Vercel deployment"
+echo "Setting up Arbitrage Bot for Vercel deployment"
 echo "=================================================="
 
 # Check if Python is installed
@@ -34,7 +34,7 @@ else
 fi
 
 # Test the bot
-echo "🧪 Testing bot functionality..."
+echo "Testing bot functionality..."
 python test_bot.py
 
 if [ $? -eq 0 ]; then

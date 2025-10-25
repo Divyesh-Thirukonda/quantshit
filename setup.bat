@@ -1,5 +1,5 @@
 @echo off
-echo 🚀 Setting up Arbitrage Bot for Vercel deployment
+echo Setting up Arbitrage Bot for Vercel deployment
 echo ==================================================
 
 REM Check if Python is installed
@@ -35,7 +35,7 @@ if not exist .env (
 )
 
 REM Test the bot
-echo 🧪 Testing bot functionality...
+echo Testing bot functionality...
 python test_bot.py
 
 if errorlevel 1 (

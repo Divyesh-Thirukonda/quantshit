@@ -24,7 +24,7 @@ class PortfolioPlanner:
         
         total_portfolio_value = portfolio_summary['total_portfolio_value']
         
-        print(f"\n🧠 Strategic Planning:")
+        print(f"\nStrategic Planning:")
         print(f"   Portfolio Value: ${total_portfolio_value:,.2f}")
         print(f"   Available Opportunities: {len(opportunities)}")
         

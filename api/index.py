@@ -144,7 +144,7 @@ async def startup_event():
     if ArbitrageBot:
         try:
             bot = ArbitrageBot()
-            print("🤖 Arbitrage Bot initialized for Vercel")
+            print("Arbitrage Bot initialized for Vercel")
         except Exception as e:
             print(f"⚠️ Could not initialize bot: {e}. Using mock data.")
             bot = None
