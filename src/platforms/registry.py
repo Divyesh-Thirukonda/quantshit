@@ -4,15 +4,13 @@ Platform registry for prediction market APIs
 
 from .base import BaseMarketAPI
 from .kalshi import KalshiAPI
-from .manifold import ManifoldAPI
 from .polymarket import PolymarketAPI
 
 
 # Registry mapping platform names to API classes
 PLATFORM_APIS = {
     'polymarket': PolymarketAPI,
-    'kalshi': KalshiAPI,
-    'manifold': ManifoldAPI
+    'kalshi': KalshiAPI
 }
 
 
