@@ -328,7 +328,7 @@ class TradeLeg:
 
 @dataclass
 class Position:
-    """Standardized position representation"""
+    """Standardized position representation with potential gain tracking"""
     market_id: str
     platform: Platform
     outcome: Outcome
@@ -337,6 +337,10 @@ class Position:
     current_price: float
     total_cost: float
     timestamp: datetime = field(default_factory=datetime.now)
+    target_exit_price: Optional[float] = None  # Expected exit price for remaining gain calculation
+    max_potential_price: Optional[float] = None  # Maximum possible price (usually 1.0 for prediction markets)
+    position_id: Optional[str] = None
+    origin_plan_id: Optional[str] = None  # Link back to the plan that created this position
     
     @property
     def market_value(self) -> float:
@@ -352,6 +356,41 @@ class Position:
     def unrealized_pnl_pct(self) -> float:
         """Unrealized P&L as percentage"""
         return (self.unrealized_pnl / self.total_cost) * 100 if self.total_cost > 0 else 0.0
+    
+    @property
+    def potential_remaining_gain(self) -> float:
+        """Potential remaining gain in absolute dollars"""
+        if self.target_exit_price is None:
+            # Use max potential price (1.0 for prediction markets) as conservative estimate
+            target_price = self.max_potential_price or 1.0
+        else:
+            target_price = self.target_exit_price
+        
+        potential_value = self.quantity * target_price
+        return potential_value - self.market_value
+    
+    @property
+    def potential_remaining_gain_pct(self) -> float:
+        """Potential remaining gain as percentage of current market value"""
+        if self.market_value <= 0:
+            return 0.0
+        return (self.potential_remaining_gain / self.market_value) * 100
+    
+    @property
+    def total_potential_gain_pct(self) -> float:
+        """Total potential gain from entry to target as percentage of cost"""
+        if self.total_cost <= 0:
+            return 0.0
+        
+        target_price = self.target_exit_price or self.max_potential_price or 1.0
+        total_potential_value = self.quantity * target_price
+        total_potential_gain = total_potential_value - self.total_cost
+        return (total_potential_gain / self.total_cost) * 100
+    
+    @property
+    def is_profitable(self) -> bool:
+        """Check if position is currently profitable"""
+        return self.unrealized_pnl > 0
 
 
 # Opportunity and Strategy Types
@@ -679,6 +718,18 @@ class ExecutionSummary:
 
 # Configuration Types
 @dataclass
+class PositionManagerConfig:
+    """Configuration for position management system"""
+    max_open_positions: int = 10
+    min_swap_threshold_pct: float = 5.0  # New opportunity must be 5% better to trigger swap
+    position_size_pct: float = 0.05  # 5% of portfolio per position
+    min_remaining_gain_pct: float = 2.0  # Minimum 2% remaining gain to keep position
+    force_close_threshold_pct: float = -10.0  # Force close if loss exceeds 10%
+    max_hold_time_hours: int = 24  # Maximum time to hold a position
+    rebalance_frequency_minutes: int = 30  # How often to check for rebalancing
+
+
+@dataclass
 class TradingConfig:
     """Trading system configuration"""
     min_spread: float = 0.05
@@ -689,6 +740,7 @@ class TradingConfig:
     min_volume: float = 1000.0
     max_trades_per_session: int = 10
     paper_trading: bool = True
+    position_manager: PositionManagerConfig = field(default_factory=PositionManagerConfig)
     
     def validate(self) -> List[str]:
         """Validate configuration parameters"""
