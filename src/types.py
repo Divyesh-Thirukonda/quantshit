@@ -45,6 +45,37 @@ class RiskLevel(Enum):
     CRITICAL = "critical"
 
 
+class FillType(Enum):
+    """Types of order fills"""
+    FULL = "full"
+    PARTIAL = "partial"
+    NONE = "none"
+
+
+class PlanStatus(Enum):
+    """Status of a trading plan"""
+    PENDING = "pending"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class LegType(Enum):
+    """Types of trade legs"""
+    BUY_LEG = "buy_leg"
+    SELL_LEG = "sell_leg"
+    HEDGE_LEG = "hedge_leg"
+
+
+class ExecutionMode(Enum):
+    """Order execution modes"""
+    MARKET = "market"
+    LIMIT = "limit"
+    IOC = "ioc"  # Immediate or Cancel
+    FOK = "fok"  # Fill or Kill
+
+
 # Core Market Data Types
 @dataclass
 class Quote:
@@ -62,6 +93,101 @@ class Quote:
             raise ValueError(f"Volume must be non-negative, got {self.volume}")
         if self.liquidity < 0:
             raise ValueError(f"Liquidity must be non-negative, got {self.liquidity}")
+
+
+@dataclass
+class OrderBookLevel:
+    """Single level in order book"""
+    price: float
+    volume: float
+    num_orders: int = 1
+    
+    def __post_init__(self):
+        if self.price < 0:
+            raise ValueError("Price must be non-negative")
+        if self.volume < 0:
+            raise ValueError("Volume must be non-negative")
+
+
+@dataclass
+class OrderBook:
+    """Complete order book for a market outcome"""
+    market_id: str
+    platform: Platform
+    outcome: Outcome
+    bids: List[OrderBookLevel] = field(default_factory=list)  # Buy orders
+    asks: List[OrderBookLevel] = field(default_factory=list)  # Sell orders
+    timestamp: datetime = field(default_factory=datetime.now)
+    
+    @property
+    def best_bid(self) -> Optional[OrderBookLevel]:
+        """Highest bid price"""
+        return max(self.bids, key=lambda x: x.price) if self.bids else None
+    
+    @property
+    def best_ask(self) -> Optional[OrderBookLevel]:
+        """Lowest ask price"""
+        return min(self.asks, key=lambda x: x.price) if self.asks else None
+    
+    @property
+    def spread(self) -> float:
+        """Bid-ask spread"""
+        if self.best_bid and self.best_ask:
+            return self.best_ask.price - self.best_bid.price
+        return 0.0
+    
+    @property
+    def mid_price(self) -> Optional[float]:
+        """Mid market price"""
+        if self.best_bid and self.best_ask:
+            return (self.best_bid.price + self.best_ask.price) / 2
+        return None
+    
+    def total_bid_volume(self, max_levels: int = 5) -> float:
+        """Total volume available at bid levels"""
+        return sum(level.volume for level in self.bids[:max_levels])
+    
+    def total_ask_volume(self, max_levels: int = 5) -> float:
+        """Total volume available at ask levels"""
+        return sum(level.volume for level in self.asks[:max_levels])
+
+
+@dataclass
+class Fill:
+    """Individual order fill/execution"""
+    fill_id: str
+    order_id: str
+    quantity: int
+    price: float
+    timestamp: datetime
+    fees: float = 0.0
+    commission: float = 0.0
+    
+    @property
+    def total_value(self) -> float:
+        """Total value of fill"""
+        return self.quantity * self.price
+    
+    @property
+    def total_cost(self) -> float:
+        """Total cost including fees"""
+        return self.total_value + self.fees + self.commission
+
+
+@dataclass
+class OrderAck:
+    """Order acknowledgment from platform"""
+    order_id: str
+    platform_order_id: Optional[str]
+    status: OrderStatus
+    message: Optional[str] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    estimated_fill_time: Optional[datetime] = None
+    
+    @property
+    def is_accepted(self) -> bool:
+        """Check if order was accepted"""
+        return self.status not in [OrderStatus.FAILED, OrderStatus.CANCELLED]
 
 
 @dataclass
@@ -109,24 +235,34 @@ class Market:
 # Order and Trade Types
 @dataclass
 class Order:
-    """Standardized order representation"""
+    """Enhanced order representation with fills and lifecycle management"""
+    order_id: str
     market_id: str
     platform: Platform
     outcome: Outcome
     order_type: OrderType
     quantity: int
     price: float
-    order_id: Optional[str] = None
+    execution_mode: ExecutionMode = ExecutionMode.LIMIT
     status: OrderStatus = OrderStatus.PENDING
     filled_quantity: int = 0
     average_fill_price: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
+    fills: List[Fill] = field(default_factory=list)
     fees: float = 0.0
+    acknowledgment: Optional[OrderAck] = None
+    parent_plan_id: Optional[str] = None
+    leg_id: Optional[str] = None
     
     @property
     def is_filled(self) -> bool:
         """Check if order is completely filled"""
         return self.status == OrderStatus.FILLED
+    
+    @property
+    def is_partial(self) -> bool:
+        """Check if order is partially filled"""
+        return self.status == OrderStatus.PARTIAL
     
     @property
     def remaining_quantity(self) -> int:
@@ -137,6 +273,57 @@ class Order:
     def total_cost(self) -> float:
         """Calculate total cost including fees"""
         return (self.filled_quantity * self.average_fill_price) + self.fees
+    
+    @property
+    def fill_percentage(self) -> float:
+        """Percentage of order filled"""
+        return (self.filled_quantity / self.quantity * 100) if self.quantity > 0 else 0.0
+    
+    def add_fill(self, fill: Fill):
+        """Add a fill to this order"""
+        self.fills.append(fill)
+        self.filled_quantity += fill.quantity
+        self.fees += fill.fees
+        
+        # Recalculate average fill price
+        total_filled_value = sum(f.quantity * f.price for f in self.fills)
+        self.average_fill_price = total_filled_value / self.filled_quantity if self.filled_quantity > 0 else 0.0
+        
+        # Update status
+        if self.filled_quantity >= self.quantity:
+            self.status = OrderStatus.FILLED
+        elif self.filled_quantity > 0:
+            self.status = OrderStatus.PARTIAL
+
+
+@dataclass
+class TradeLeg:
+    """Individual leg of a multi-leg trade strategy"""
+    leg_id: str
+    leg_type: LegType
+    market: Market
+    outcome: Outcome
+    order_type: OrderType
+    target_quantity: int
+    target_price: float
+    execution_mode: ExecutionMode = ExecutionMode.LIMIT
+    priority: int = 1  # Lower numbers = higher priority
+    dependency_legs: List[str] = field(default_factory=list)  # Must execute after these
+    order: Optional[Order] = None
+    
+    @property
+    def is_executed(self) -> bool:
+        """Check if leg has been executed"""
+        return self.order is not None and self.order.is_filled
+    
+    @property
+    def is_pending(self) -> bool:
+        """Check if leg is pending execution"""
+        return self.order is None or self.order.status == OrderStatus.PENDING
+    
+    def can_execute(self, executed_legs: List[str]) -> bool:
+        """Check if all dependencies are met"""
+        return all(dep_id in executed_legs for dep_id in self.dependency_legs)
 
 
 @dataclass
@@ -220,25 +407,88 @@ class ArbitrageOpportunity:
 
 @dataclass
 class TradePlan:
-    """Complete trading plan with multiple opportunities"""
-    opportunities: List[ArbitrageOpportunity]
-    total_capital_required: float
-    expected_total_return: float
-    max_risk_per_trade: float
-    portfolio_utilization: float
+    """Complete trading plan with multiple legs and execution strategy"""
+    plan_id: str
+    name: str
+    legs: List[TradeLeg]
+    strategy_type: str = "arbitrage"  # arbitrage, hedge, speculative, etc.
+    status: PlanStatus = PlanStatus.PENDING
+    total_capital_required: float = 0.0
+    expected_total_return: float = 0.0
+    max_risk_per_trade: float = 0.0
+    portfolio_utilization: float = 0.0
     correlation_groups: Dict[str, List[str]] = field(default_factory=dict)
     risk_metrics: Dict[str, float] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
+    start_time: Optional[datetime] = None
+    completion_time: Optional[datetime] = None
+    timeout_minutes: int = 30
     
     @property
-    def num_trades(self) -> int:
-        """Number of trades in plan"""
-        return len(self.opportunities)
+    def num_legs(self) -> int:
+        """Number of legs in plan"""
+        return len(self.legs)
     
     @property
     def expected_return_pct(self) -> float:
         """Expected return as percentage of capital"""
         return (self.expected_total_return / self.total_capital_required * 100) if self.total_capital_required > 0 else 0.0
+    
+    @property
+    def executed_legs(self) -> List[TradeLeg]:
+        """Get all executed legs"""
+        return [leg for leg in self.legs if leg.is_executed]
+    
+    @property
+    def pending_legs(self) -> List[TradeLeg]:
+        """Get all pending legs"""
+        return [leg for leg in self.legs if leg.is_pending]
+    
+    @property
+    def execution_progress(self) -> float:
+        """Percentage of legs executed"""
+        return (len(self.executed_legs) / len(self.legs) * 100) if self.legs else 0.0
+    
+    def get_next_executable_legs(self) -> List[TradeLeg]:
+        """Get legs that can be executed next based on dependencies"""
+        executed_leg_ids = [leg.leg_id for leg in self.executed_legs]
+        return [leg for leg in self.pending_legs if leg.can_execute(executed_leg_ids)]
+    
+    def add_leg(self, leg: TradeLeg):
+        """Add a leg to the plan"""
+        self.legs.append(leg)
+        self.total_capital_required += leg.target_quantity * leg.target_price
+    
+    def is_complete(self) -> bool:
+        """Check if all legs are executed"""
+        return all(leg.is_executed for leg in self.legs)
+    
+    def to_opportunities(self) -> List[ArbitrageOpportunity]:
+        """Convert plan legs to legacy ArbitrageOpportunity objects for compatibility"""
+        opportunities = []
+        
+        # Group legs into arbitrage pairs
+        buy_legs = [leg for leg in self.legs if leg.leg_type == LegType.BUY_LEG]
+        sell_legs = [leg for leg in self.legs if leg.leg_type == LegType.SELL_LEG]
+        
+        for i, buy_leg in enumerate(buy_legs):
+            if i < len(sell_legs):
+                sell_leg = sell_legs[i]
+                opportunity = ArbitrageOpportunity(
+                    id=f"{self.plan_id}_leg_{buy_leg.leg_id}_{sell_leg.leg_id}",
+                    buy_market=buy_leg.market,
+                    sell_market=sell_leg.market,
+                    outcome=buy_leg.outcome,
+                    buy_price=buy_leg.target_price,
+                    sell_price=sell_leg.target_price,
+                    spread=sell_leg.target_price - buy_leg.target_price,
+                    expected_profit_per_share=sell_leg.target_price - buy_leg.target_price,
+                    max_quantity=min(buy_leg.target_quantity, sell_leg.target_quantity),
+                    recommended_quantity=min(buy_leg.target_quantity, sell_leg.target_quantity)
+                )
+                opportunities.append(opportunity)
+        
+        return opportunities
 
 
 # Portfolio and Risk Types
@@ -293,8 +543,46 @@ class RiskMetrics:
 
 # Execution and Results Types
 @dataclass
+class ExecutionResult:
+    """Comprehensive result of executing a trade plan"""
+    plan_id: str
+    status: PlanStatus
+    executed_legs: List[TradeLeg]
+    failed_legs: List[TradeLeg]
+    total_profit: float = 0.0
+    total_fees: float = 0.0
+    execution_time_ms: float = 0.0
+    error_messages: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.now)
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    
+    @property
+    def net_profit(self) -> float:
+        """Net profit after fees"""
+        return self.total_profit - self.total_fees
+    
+    @property
+    def success_rate(self) -> float:
+        """Percentage of legs executed successfully"""
+        total_legs = len(self.executed_legs) + len(self.failed_legs)
+        return (len(self.executed_legs) / total_legs * 100) if total_legs > 0 else 0.0
+    
+    @property
+    def is_successful(self) -> bool:
+        """Check if execution was completely successful"""
+        return self.status == PlanStatus.COMPLETED and not self.failed_legs
+    
+    @property
+    def is_partial_success(self) -> bool:
+        """Check if execution had some success"""
+        return len(self.executed_legs) > 0 and len(self.failed_legs) > 0
+
+
+@dataclass
 class TradeExecution:
-    """Result of executing a trade"""
+    """Legacy trade execution result for backwards compatibility"""
     opportunity_id: str
     buy_order: Order
     sell_order: Order
@@ -314,6 +602,57 @@ class TradeExecution:
     def both_orders_filled(self) -> bool:
         """Check if both sides of arbitrage were executed"""
         return self.buy_order.is_filled and self.sell_order.is_filled
+    
+    @classmethod
+    def from_execution_result(cls, execution_result: ExecutionResult, opportunity_id: str) -> 'TradeExecution':
+        """Create TradeExecution from ExecutionResult for compatibility"""
+        executed_legs = execution_result.executed_legs
+        
+        # Find buy and sell orders
+        buy_order = None
+        sell_order = None
+        
+        for leg in executed_legs:
+            if leg.order:
+                if leg.leg_type == LegType.BUY_LEG:
+                    buy_order = leg.order
+                elif leg.leg_type == LegType.SELL_LEG:
+                    sell_order = leg.order
+        
+        # Create dummy orders if not found
+        if not buy_order:
+            buy_order = Order(
+                order_id="dummy_buy",
+                market_id="unknown",
+                platform=Platform.POLYMARKET,
+                outcome=Outcome.YES,
+                order_type=OrderType.BUY,
+                quantity=0,
+                price=0.0
+            )
+        
+        if not sell_order:
+            sell_order = Order(
+                order_id="dummy_sell",
+                market_id="unknown",
+                platform=Platform.KALSHI,
+                outcome=Outcome.YES,
+                order_type=OrderType.SELL,
+                quantity=0,
+                price=0.0
+            )
+        
+        return cls(
+            opportunity_id=opportunity_id,
+            buy_order=buy_order,
+            sell_order=sell_order,
+            success=execution_result.is_successful,
+            profit_realized=execution_result.total_profit,
+            fees_paid=execution_result.total_fees,
+            execution_time_ms=execution_result.execution_time_ms,
+            error_message="; ".join(execution_result.error_messages) if execution_result.error_messages else None,
+            timestamp=execution_result.timestamp
+        )
 
 
 @dataclass
@@ -377,11 +716,21 @@ Orders = List[Order]
 Positions = List[Position]
 Opportunities = List[ArbitrageOpportunity]
 Executions = List[TradeExecution]
+TradePlans = List[TradePlan]
+TradeLegs = List[TradeLeg]
+Fills = List[Fill]
+OrderBooks = List[OrderBook]
 
 # Union types for flexibility
 PlatformIdentifier = Union[Platform, str]
 OutcomeIdentifier = Union[Outcome, str]
 OrderTypeIdentifier = Union[OrderType, str]
+ExecutionModeIdentifier = Union[ExecutionMode, str]
+LegTypeIdentifier = Union[LegType, str]
+
+# Complex union types for execution interfaces
+ExecutableItem = Union[ArbitrageOpportunity, TradePlan, TradeLeg]
+ExecutionResultType = Union[ExecutionResult, TradeExecution]
 
 
 # Utility functions for type conversion
@@ -404,3 +753,85 @@ def ensure_order_type(order_type: OrderTypeIdentifier) -> OrderType:
     if isinstance(order_type, str):
         return OrderType(order_type.lower())
     return order_type
+
+
+def ensure_execution_mode(execution_mode: ExecutionModeIdentifier) -> ExecutionMode:
+    """Ensure execution_mode is ExecutionMode enum"""
+    if isinstance(execution_mode, str):
+        return ExecutionMode(execution_mode.lower())
+    return execution_mode
+
+
+def ensure_leg_type(leg_type: LegTypeIdentifier) -> LegType:
+    """Ensure leg_type is LegType enum"""
+    if isinstance(leg_type, str):
+        return LegType(leg_type.lower())
+    return leg_type
+
+
+# Factory functions for creating common objects
+def create_arbitrage_plan(
+    plan_id: str,
+    buy_market: Market,
+    sell_market: Market,
+    outcome: Outcome,
+    buy_quantity: int,
+    sell_quantity: int,
+    buy_price: float,
+    sell_price: float,
+    name: Optional[str] = None
+) -> TradePlan:
+    """Create a TradePlan for arbitrage opportunity"""
+    
+    if name is None:
+        name = f"Arbitrage {outcome.value} {buy_market.platform.value}->{sell_market.platform.value}"
+    
+    buy_leg = TradeLeg(
+        leg_id=f"{plan_id}_buy",
+        leg_type=LegType.BUY_LEG,
+        market=buy_market,
+        outcome=outcome,
+        order_type=OrderType.BUY,
+        target_quantity=buy_quantity,
+        target_price=buy_price,
+        priority=1
+    )
+    
+    sell_leg = TradeLeg(
+        leg_id=f"{plan_id}_sell",
+        leg_type=LegType.SELL_LEG,
+        market=sell_market,
+        outcome=outcome,
+        order_type=OrderType.SELL,
+        target_quantity=sell_quantity,
+        target_price=sell_price,
+        priority=2,
+        dependency_legs=[buy_leg.leg_id]  # Sell after buy
+    )
+    
+    plan = TradePlan(
+        plan_id=plan_id,
+        name=name,
+        legs=[buy_leg, sell_leg],
+        strategy_type="arbitrage",
+        total_capital_required=buy_quantity * buy_price,
+        expected_total_return=(sell_price - buy_price) * min(buy_quantity, sell_quantity)
+    )
+    
+    return plan
+
+
+def create_order_from_leg(leg: TradeLeg, order_id: str) -> Order:
+    """Create an Order from a TradeLeg"""
+    return Order(
+        order_id=order_id,
+        market_id=leg.market.id,
+        platform=leg.market.platform,
+        outcome=leg.outcome,
+        order_type=leg.order_type,
+        quantity=leg.target_quantity,
+        price=leg.target_price,
+        execution_mode=leg.execution_mode,
+        parent_plan_id=order_id.split('_')[0] if '_' in order_id else None,
+        leg_id=leg.leg_id
+    )

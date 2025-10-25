@@ -1,8 +1,14 @@
 import time
-from typing import Dict, List
+import uuid
+from typing import Dict, List, Union, Optional
+from datetime import datetime
 
 from ..platforms import get_market_api
-from ..types import ArbitrageOpportunity
+from ..types import (
+    ArbitrageOpportunity, TradePlan, TradeLeg, Order, OrderStatus, 
+    ExecutionResult, PlanStatus, LegType, OrderType, Fill, OrderAck,
+    create_order_from_leg, TradeExecution
+)
 
 
 class TradeExecutor:
@@ -310,3 +316,194 @@ class TradeExecutor:
         
         print(f"\n📊 Summary: {trades_executed}/{len(executed_trades)} trades executed successfully")
         return executed_trades
+    
+    def place(self, executable_item: Union[TradePlan, ArbitrageOpportunity, List[ArbitrageOpportunity]]) -> Union[ExecutionResult, TradeExecution, List[TradeExecution]]:
+        """
+        Universal place() method that takes TradePlan, ArbitrageOpportunity, or list of opportunities
+        Returns appropriate execution result type
+        """
+        if isinstance(executable_item, TradePlan):
+            return self.execute_plan(executable_item)
+        elif isinstance(executable_item, ArbitrageOpportunity):
+            return self.execute_arbitrage(executable_item)
+        elif isinstance(executable_item, list):
+            return self.execute_opportunities(executable_item)
+        else:
+            raise ValueError(f"Unsupported executable item type: {type(executable_item)}")
+    
+    def execute_plan(self, plan: TradePlan) -> ExecutionResult:
+        """
+        Execute a complete TradePlan with proper leg sequencing and dependency management
+        """
+        print(f"\n🎯 Executing Trade Plan: {plan.name}")
+        print(f"   Plan ID: {plan.plan_id}")
+        print(f"   Strategy: {plan.strategy_type}")
+        print(f"   Legs: {plan.num_legs}")
+        print(f"   Expected Return: ${plan.expected_total_return:.2f} ({plan.expected_return_pct:.1f}%)")
+        
+        plan.status = PlanStatus.EXECUTING
+        plan.start_time = datetime.now()
+        
+        executed_legs = []
+        failed_legs = []
+        error_messages = []
+        warnings = []
+        total_profit = 0.0
+        total_fees = 0.0
+        
+        start_time = time.time()
+        
+        try:
+            # Execute legs in dependency order
+            remaining_legs = plan.legs.copy()
+            max_iterations = len(plan.legs) * 2  # Prevent infinite loops
+            iteration = 0
+            
+            while remaining_legs and iteration < max_iterations:
+                iteration += 1
+                executed_leg_ids = [leg.leg_id for leg in executed_legs]
+                
+                # Find legs that can be executed now
+                executable_legs = [
+                    leg for leg in remaining_legs 
+                    if leg.can_execute(executed_leg_ids)
+                ]
+                
+                if not executable_legs:
+                    # Check if we're waiting on failed legs
+                    failed_leg_ids = [leg.leg_id for leg in failed_legs]
+                    waiting_on_failed = any(
+                        any(dep in failed_leg_ids for dep in leg.dependency_legs)
+                        for leg in remaining_legs
+                    )
+                    
+                    if waiting_on_failed:
+                        warnings.append("Some legs depend on failed legs - skipping")
+                        failed_legs.extend(remaining_legs)
+                        break
+                    else:
+                        warnings.append("Circular dependency detected or unresolvable dependencies")
+                        break
+                
+                # Execute legs in priority order
+                executable_legs.sort(key=lambda x: x.priority)
+                
+                for leg in executable_legs:
+                    print(f"\n   🔄 Executing Leg: {leg.leg_id} ({leg.leg_type.value})")
+                    print(f"      Market: [{leg.market.platform.value}] {leg.market.title[:50]}...")
+                    print(f"      {leg.order_type.value.upper()} {leg.target_quantity} {leg.outcome.value} @ ${leg.target_price:.4f}")
+                    
+                    try:
+                        # Create and execute order for this leg
+                        order_id = f"{plan.plan_id}_{leg.leg_id}_{int(time.time())}"
+                        order = create_order_from_leg(leg, order_id)
+                        
+                        # Execute the order using platform API
+                        platform_api = self.apis[leg.market.platform.value]
+                        
+                        if leg.order_type == OrderType.BUY:
+                            api_result = platform_api.place_buy_order(
+                                leg.market.id,
+                                leg.outcome.value,
+                                leg.target_quantity,
+                                leg.target_price
+                            )
+                        else:
+                            api_result = platform_api.place_sell_order(
+                                leg.market.id,
+                                leg.outcome.value,
+                                leg.target_quantity,
+                                leg.target_price
+                            )
+                        
+                        if api_result.get('success'):
+                            # Simulate fill
+                            fill = Fill(
+                                fill_id=f"fill_{order_id}",
+                                order_id=order_id,
+                                quantity=leg.target_quantity,
+                                price=leg.target_price,
+                                timestamp=datetime.now(),
+                                fees=leg.target_quantity * leg.target_price * 0.01  # 1% fee
+                            )
+                            
+                            order.add_fill(fill)
+                            order.status = OrderStatus.FILLED
+                            leg.order = order
+                            
+                            # Update virtual balances and positions
+                            self.update_position(
+                                leg.market.platform.value,
+                                leg.market.id,
+                                leg.outcome.value,
+                                leg.target_quantity,
+                                leg.target_price,
+                                leg.order_type.value
+                            )
+                            
+                            executed_legs.append(leg)
+                            total_profit += fill.total_value if leg.leg_type == LegType.SELL_LEG else -fill.total_value
+                            total_fees += fill.fees
+                            
+                            print(f"      ✅ Leg executed successfully!")
+                            print(f"      💰 Balance: ${self.virtual_balances[leg.market.platform.value]:,.2f}")
+                            
+                        else:
+                            error_msg = f"API execution failed for leg {leg.leg_id}: {api_result.get('message', 'Unknown error')}"
+                            error_messages.append(error_msg)
+                            failed_legs.append(leg)
+                            print(f"      ❌ Leg failed: {api_result.get('message', 'Unknown error')}")
+                    
+                    except Exception as e:
+                        error_msg = f"Exception executing leg {leg.leg_id}: {str(e)}"
+                        error_messages.append(error_msg)
+                        failed_legs.append(leg)
+                        print(f"      ❌ Leg failed: {e}")
+                    
+                    # Remove from remaining legs
+                    remaining_legs.remove(leg)
+                    
+                    # Small delay between legs
+                    time.sleep(0.5)
+        
+        except Exception as e:
+            error_messages.append(f"Plan execution error: {str(e)}")
+            plan.status = PlanStatus.FAILED
+        
+        # Determine final status
+        if not failed_legs and executed_legs:
+            plan.status = PlanStatus.COMPLETED
+        elif executed_legs:
+            plan.status = PlanStatus.COMPLETED  # Partial success still counts as completed
+        else:
+            plan.status = PlanStatus.FAILED
+        
+        plan.completion_time = datetime.now()
+        execution_time = (time.time() - start_time) * 1000
+        
+        result = ExecutionResult(
+            plan_id=plan.plan_id,
+            status=plan.status,
+            executed_legs=executed_legs,
+            failed_legs=failed_legs,
+            total_profit=total_profit,
+            total_fees=total_fees,
+            execution_time_ms=execution_time,
+            error_messages=error_messages,
+            warnings=warnings,
+            start_time=plan.start_time,
+            end_time=plan.completion_time
+        )
+        
+        print(f"\n📊 Plan Execution Summary:")
+        print(f"   Status: {plan.status.value}")
+        print(f"   Executed: {len(executed_legs)}/{plan.num_legs} legs")
+        print(f"   Total Profit: ${result.net_profit:.2f}")
+        print(f"   Execution Time: {execution_time:.1f}ms")
+        
+        if error_messages:
+            print(f"   Errors: {len(error_messages)}")
+        if warnings:
+            print(f"   Warnings: {len(warnings)}")
+        
+        return result
