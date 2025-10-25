@@ -9,11 +9,5 @@
       "src": "/(.*)",
       "dest": "/api/app.py"
     }
-  ],
-  "env": {
-    "POLYMARKET_API_KEY": "@polymarket_api_key",
-    "KALSHI_API_KEY": "@kalshi_api_key",
-    "MIN_VOLUME": "1000",
-    "MIN_SPREAD": "0.05"
-  }
+  ]
 }
