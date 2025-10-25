@@ -7,20 +7,24 @@ from ..platforms import get_market_api
 from ..types import (
     ArbitrageOpportunity, TradePlan, TradeLeg, Order, OrderStatus, 
     ExecutionResult, PlanStatus, LegType, OrderType, Fill, OrderAck,
-    create_order_from_leg, TradeExecution
+    create_order_from_leg, TradeExecution, PositionManagerConfig, Position
 )
+from .position_manager import PositionManager
 
 
 class TradeExecutor:
-    """Handles paper trading execution (simulation only)"""
+    """Handles paper trading execution with intelligent position management"""
     
-    def __init__(self, api_keys: Dict[str, str], paper_trading: bool = True):
+    def __init__(self, api_keys: Dict[str, str], paper_trading: bool = True, position_config: Optional[PositionManagerConfig] = None):
         self.api_keys = api_keys
         self.apis = {}
         self.paper_trading = paper_trading
         self.virtual_balances = {}  # Cash balances
-        self.positions = {}  # Position tracking
+        self.positions = {}  # Legacy position tracking
         self.trade_history = []  # Track all trades
+        
+        # Initialize Position Manager
+        self.position_manager = PositionManager(position_config or PositionManagerConfig())
         
         # Initialize APIs for each platform
         for platform, api_key in api_keys.items():
@@ -33,6 +37,8 @@ class TradeExecutor:
                 print(f"  └─ Virtual Balance: ${self.virtual_balances[platform]:,.2f}")
             except Exception as e:
                 print(f"✗ Failed to initialize {platform} API: {e}")
+        
+        print(f"📊 Position Manager initialized: Max {self.position_manager.config.max_open_positions} positions")
     
     def get_virtual_balances(self) -> Dict[str, float]:
         """Get current virtual balances for all platforms"""
@@ -41,6 +47,101 @@ class TradeExecutor:
     def get_positions(self) -> Dict[str, Dict]:
         """Get current positions for all platforms"""
         return self.positions.copy()
+    
+    def get_portfolio_value(self) -> float:
+        """Get total portfolio value including cash and managed positions"""
+        total_cash = sum(self.virtual_balances.values())
+        total_positions = sum(pos.market_value for pos in self.position_manager.get_active_positions())
+        return total_cash + total_positions
+    
+    def check_and_execute_swaps(self, new_opportunity: ArbitrageOpportunity) -> bool:
+        """
+        Check if we should swap out an existing position for a new opportunity
+        Returns True if a swap was executed
+        """
+        should_swap, position_to_swap = self.position_manager.should_swap_position(new_opportunity)
+        
+        if should_swap and position_to_swap:
+            print(f"\n🔄 Executing position swap:")
+            print(f"   Closing: {position_to_swap.position_id} ({position_to_swap.potential_remaining_gain_pct:.1f}% remaining)")
+            print(f"   Opening: New opportunity with {(new_opportunity.expected_profit_per_share / new_opportunity.buy_price * 100):.1f}% potential gain")
+            
+            # Close the underperforming position
+            self.close_position(position_to_swap)
+            
+            # Execute the new opportunity
+            portfolio_value = self.get_portfolio_value()
+            new_opportunity.recommended_quantity = self.position_manager.calculate_position_size(new_opportunity, portfolio_value)
+            
+            result = self.execute_arbitrage(new_opportunity)
+            if result.get('success'):
+                print(f"   ✅ Position swap completed successfully")
+                return True
+            else:
+                print(f"   ❌ Position swap failed: {result.get('error')}")
+        
+        return False
+    
+    def close_position(self, position: Position) -> Dict:
+        """
+        Close an existing position by selling/buying back
+        """
+        try:
+            platform_api = self.apis[position.platform.value]
+            
+            # Determine opposite action
+            if position.quantity > 0:
+                # We own shares, need to sell
+                api_result = platform_api.place_sell_order(
+                    position.market_id,
+                    position.outcome.value,
+                    abs(position.quantity),
+                    position.current_price
+                )
+                action = 'sell'
+            else:
+                # We're short, need to buy back
+                api_result = platform_api.place_buy_order(
+                    position.market_id,
+                    position.outcome.value,
+                    abs(position.quantity),
+                    position.current_price
+                )
+                action = 'buy'
+            
+            if api_result.get('success'):
+                # Update virtual balance
+                proceeds = abs(position.quantity) * position.current_price
+                if action == 'sell':
+                    self.virtual_balances[position.platform.value] += proceeds
+                else:
+                    self.virtual_balances[position.platform.value] -= proceeds
+                
+                # Remove from position manager
+                self.position_manager.remove_position(position.position_id)
+                
+                # Update legacy position tracking
+                position_key = f"{position.market_id}_{position.outcome.value}"
+                if position.platform.value in self.positions and position_key in self.positions[position.platform.value]:
+                    del self.positions[position.platform.value][position_key]
+                
+                return {
+                    'success': True,
+                    'action': action,
+                    'proceeds': proceeds,
+                    'realized_pnl': position.unrealized_pnl
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': api_result.get('message', 'Unknown error')
+                }
+        
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f"Exception closing position: {str(e)}"
+            }
     
     def get_portfolio_summary(self) -> Dict[str, Dict]:
         """Get complete portfolio summary including cash and positions"""
@@ -319,17 +420,123 @@ class TradeExecutor:
     
     def place(self, executable_item: Union[TradePlan, ArbitrageOpportunity, List[ArbitrageOpportunity]]) -> Union[ExecutionResult, TradeExecution, List[TradeExecution]]:
         """
-        Universal place() method that takes TradePlan, ArbitrageOpportunity, or list of opportunities
-        Returns appropriate execution result type
+        Universal place() method with intelligent position management
+        Handles position limits and automatic swapping of underperforming positions
         """
+        # Check for forced exits first
+        forced_exits = self.position_manager.check_forced_exits()
+        for position in forced_exits:
+            print(f"🚨 Force closing position: {position.position_id}")
+            self.close_position(position)
+        
+        # Print current position status
+        self.position_manager.print_portfolio_status()
+        
         if isinstance(executable_item, TradePlan):
-            return self.execute_plan(executable_item)
+            return self._execute_plan_with_position_management(executable_item)
         elif isinstance(executable_item, ArbitrageOpportunity):
-            return self.execute_arbitrage(executable_item)
+            return self._execute_opportunity_with_position_management(executable_item)
         elif isinstance(executable_item, list):
-            return self.execute_opportunities(executable_item)
+            return self._execute_opportunities_with_position_management(executable_item)
         else:
             raise ValueError(f"Unsupported executable item type: {type(executable_item)}")
+    
+    def _execute_opportunity_with_position_management(self, opportunity: ArbitrageOpportunity) -> TradeExecution:
+        """Execute single opportunity with position management"""
+        # Check if we have capacity or can swap
+        if not self.position_manager.has_capacity():
+            if not self.check_and_execute_swaps(opportunity):
+                print(f"❌ No capacity and swap not beneficial - skipping opportunity")
+                return TradeExecution(
+                    opportunity_id=opportunity.id,
+                    buy_order=Order("dummy_buy", opportunity.buy_market.id, opportunity.buy_market.platform, 
+                                  opportunity.outcome, OrderType.BUY, 0, 0.0),
+                    sell_order=Order("dummy_sell", opportunity.sell_market.id, opportunity.sell_market.platform,
+                                   opportunity.outcome, OrderType.SELL, 0, 0.0),
+                    success=False,
+                    error_message="No position capacity available and swap not beneficial"
+                )
+        
+        # Calculate position size based on portfolio
+        if not opportunity.recommended_quantity:
+            portfolio_value = self.get_portfolio_value()
+            opportunity.recommended_quantity = self.position_manager.calculate_position_size(opportunity, portfolio_value)
+        
+        # Execute the opportunity
+        result = self.execute_arbitrage(opportunity)
+        
+        # If successful, create managed positions
+        if result.get('success'):
+            self._create_managed_positions_from_arbitrage(opportunity, result)
+        
+        return result
+    
+    def _execute_opportunities_with_position_management(self, opportunities: List[ArbitrageOpportunity]) -> List[TradeExecution]:
+        """Execute multiple opportunities with position management"""
+        results = []
+        
+        # Sort opportunities by expected return percentage (best first)
+        sorted_opportunities = sorted(
+            opportunities,
+            key=lambda opp: (opp.expected_profit_per_share / opp.buy_price) * 100,
+            reverse=True
+        )
+        
+        for opportunity in sorted_opportunities:
+            result = self._execute_opportunity_with_position_management(opportunity)
+            results.append(result)
+            
+            # Stop if we hit position limits and can't swap
+            if not self.position_manager.has_capacity() and not result.get('success'):
+                print(f"📊 Position limit reached - processed {len(results)} opportunities")
+                break
+        
+        return results
+    
+    def _execute_plan_with_position_management(self, plan: TradePlan) -> ExecutionResult:
+        """Execute TradePlan with position management"""
+        # Check capacity
+        if not self.position_manager.has_capacity():
+            print(f"⚠️  Limited position capacity for plan execution")
+        
+        # Execute the plan
+        result = self.execute_plan(plan)
+        
+        # Create managed positions from successful execution
+        if result.is_successful or result.executed_legs:
+            positions = self.position_manager.create_position_from_plan(plan, result)
+            print(f"📍 Created {len(positions)} managed positions from plan execution")
+        
+        return result
+    
+    def _create_managed_positions_from_arbitrage(self, opportunity: ArbitrageOpportunity, execution_result: Dict):
+        """Create managed positions from successful arbitrage execution"""
+        buy_order = execution_result.get('buy_result', {})
+        sell_order = execution_result.get('sell_result', {})
+        
+        positions_created = 0
+        
+        # Create position for buy side
+        if buy_order.get('success'):
+            buy_position = Position(
+                market_id=opportunity.buy_market.id,
+                platform=opportunity.buy_market.platform,
+                outcome=opportunity.outcome,
+                quantity=opportunity.recommended_quantity or opportunity.max_quantity,
+                average_price=opportunity.buy_price,
+                current_price=opportunity.buy_price,
+                total_cost=(opportunity.recommended_quantity or opportunity.max_quantity) * opportunity.buy_price,
+                target_exit_price=opportunity.sell_price,  # Plan to exit at sell price
+                max_potential_price=1.0
+            )
+            self.position_manager.add_position(buy_position)
+            positions_created += 1
+        
+        # Note: For arbitrage, we immediately sell, so we don't typically hold the sell position
+        # The sell side is the exit strategy for the buy side
+        
+        if positions_created > 0:
+            print(f"📍 Created {positions_created} managed positions from arbitrage execution")
     
     def execute_plan(self, plan: TradePlan) -> ExecutionResult:
         """
