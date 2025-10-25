@@ -11,6 +11,8 @@ pip install -r requirements.txt
 python main.py  # Start paper trading mode
 ```
 
+Make sure to set up your `.env` (follow `.env.example`)
+
 ## System Overview
 
 Quantshit is a **3-layer architecture** designed for speed and reliability:
