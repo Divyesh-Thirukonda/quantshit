@@ -5,19 +5,28 @@ from ..platforms import get_market_api
 
 
 class TradeExecutor:
-    """Handles trade execution across different platforms"""
+    """Handles paper trading execution (simulation only)"""
     
-    def __init__(self, api_keys: Dict[str, str]):
+    def __init__(self, api_keys: Dict[str, str], paper_trading: bool = True):
         self.api_keys = api_keys
         self.apis = {}
+        self.paper_trading = paper_trading
+        self.virtual_balances = {}
         
         # Initialize APIs for each platform
         for platform, api_key in api_keys.items():
             try:
                 self.apis[platform] = get_market_api(platform, api_key)
-                print(f"✓ Initialized {platform} API")
+                # Initialize virtual balance for paper trading
+                self.virtual_balances[platform] = 10000.0  # Start with $10k per platform
+                print(f"✓ Initialized {platform} API (Paper Trading)")
+                print(f"  └─ Virtual Balance: ${self.virtual_balances[platform]:,.2f}")
             except Exception as e:
                 print(f"✗ Failed to initialize {platform} API: {e}")
+    
+    def get_virtual_balances(self) -> Dict[str, float]:
+        """Get current virtual balances for all platforms"""
+        return self.virtual_balances.copy()
     
     def execute_arbitrage(self, opportunity: Dict) -> Dict:
         """Execute an arbitrage opportunity"""

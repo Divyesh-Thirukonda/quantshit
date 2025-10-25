@@ -2,6 +2,7 @@
 Platform registry for prediction market APIs
 """
 
+import os
 from .base import BaseMarketAPI
 from .kalshi import KalshiAPI
 from .polymarket import PolymarketAPI
@@ -15,10 +16,19 @@ PLATFORM_APIS = {
 
 
 def get_market_api(platform: str, api_key: str = None) -> BaseMarketAPI:
-    """Factory function to get market API instance"""
+    """Factory function to get market API instance (paper trading mode only)"""
     if platform not in PLATFORM_APIS:
         raise ValueError(f"Unsupported platform: {platform}")
     
+    # Get API key from environment if not provided
+    if api_key is None:
+        if platform == 'polymarket':
+            api_key = os.getenv('POLYMARKET_API_KEY')
+        elif platform == 'kalshi':
+            api_key = os.getenv('KALSHI_API_KEY')
+    
+    # Always return mock APIs for paper trading
+    print(f"   📄 Creating paper trading API for {platform}")
     return PLATFORM_APIS[platform](api_key)
 
 

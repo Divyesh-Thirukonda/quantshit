@@ -26,7 +26,7 @@ except ImportError:
 app = FastAPI(
     title="Quantshit Arbitrage Engine", 
     version="1.0.0",
-    description="Cross-venue prediction market arbitrage detection API"
+    description="Paper Trading Arbitrage Detection API (Simulation Only)"
 )
 
 # Global bot instance
