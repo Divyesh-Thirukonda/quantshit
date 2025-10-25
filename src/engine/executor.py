@@ -11,14 +11,17 @@ class TradeExecutor:
         self.api_keys = api_keys
         self.apis = {}
         self.paper_trading = paper_trading
-        self.virtual_balances = {}
+        self.virtual_balances = {}  # Cash balances
+        self.positions = {}  # Position tracking
+        self.trade_history = []  # Track all trades
         
         # Initialize APIs for each platform
         for platform, api_key in api_keys.items():
             try:
                 self.apis[platform] = get_market_api(platform, api_key)
-                # Initialize virtual balance for paper trading
+                # Initialize virtual balance and positions for paper trading
                 self.virtual_balances[platform] = 10000.0  # Start with $10k per platform
+                self.positions[platform] = {}  # Track positions per platform
                 print(f"✓ Initialized {platform} API (Paper Trading)")
                 print(f"  └─ Virtual Balance: ${self.virtual_balances[platform]:,.2f}")
             except Exception as e:
@@ -27,6 +30,114 @@ class TradeExecutor:
     def get_virtual_balances(self) -> Dict[str, float]:
         """Get current virtual balances for all platforms"""
         return self.virtual_balances.copy()
+    
+    def get_positions(self) -> Dict[str, Dict]:
+        """Get current positions for all platforms"""
+        return self.positions.copy()
+    
+    def get_portfolio_summary(self) -> Dict[str, Dict]:
+        """Get complete portfolio summary including cash and positions"""
+        summary = {}
+        total_value = 0
+        
+        for platform in self.virtual_balances.keys():
+            cash = self.virtual_balances[platform]
+            positions = self.positions[platform]
+            
+            # Calculate position values (using current market price estimates)
+            position_value = 0
+            position_details = []
+            
+            for position_key, position in positions.items():
+                shares = position['shares']
+                avg_price = position['avg_price']
+                current_value = shares * avg_price  # Simplified - in reality would use current market price
+                position_value += current_value
+                
+                position_details.append({
+                    'market': position_key,
+                    'shares': shares,
+                    'avg_price': avg_price,
+                    'current_value': current_value,
+                    'unrealized_pnl': current_value - (shares * avg_price)
+                })
+            
+            platform_total = cash + position_value
+            total_value += platform_total
+            
+            summary[platform] = {
+                'cash': cash,
+                'position_value': position_value,
+                'total_value': platform_total,
+                'positions': position_details
+            }
+        
+        summary['total_portfolio_value'] = total_value
+        return summary
+    
+    def update_position(self, platform: str, market_id: str, outcome: str, shares: float, price: float, action: str):
+        """Update position after a trade"""
+        position_key = f"{market_id}_{outcome}"
+        
+        if platform not in self.positions:
+            self.positions[platform] = {}
+        
+        current_position = self.positions[platform].get(position_key, {
+            'shares': 0,
+            'avg_price': 0,
+            'total_cost': 0
+        })
+        
+        if action == 'buy':
+            # Add to position
+            new_shares = current_position['shares'] + shares
+            new_cost = current_position['total_cost'] + (shares * price)
+            new_avg_price = new_cost / new_shares if new_shares > 0 else 0
+            
+            self.positions[platform][position_key] = {
+                'shares': new_shares,
+                'avg_price': new_avg_price,
+                'total_cost': new_cost
+            }
+            
+            # Reduce cash balance
+            self.virtual_balances[platform] -= shares * price
+            
+        elif action == 'sell':
+            # Reduce position
+            if current_position['shares'] >= shares:
+                new_shares = current_position['shares'] - shares
+                
+                if new_shares > 0:
+                    # Partial sale - reduce proportionally
+                    remaining_cost = current_position['total_cost'] * (new_shares / current_position['shares'])
+                    self.positions[platform][position_key] = {
+                        'shares': new_shares,
+                        'avg_price': current_position['avg_price'],
+                        'total_cost': remaining_cost
+                    }
+                else:
+                    # Full sale - remove position
+                    del self.positions[platform][position_key]
+                
+                # Add cash from sale
+                self.virtual_balances[platform] += shares * price
+                
+            else:
+                # Short selling or error - for now just add cash
+                self.virtual_balances[platform] += shares * price
+        
+        # Record trade
+        self.trade_history.append({
+            'timestamp': time.time(),
+            'platform': platform,
+            'market_id': market_id,
+            'outcome': outcome,
+            'action': action,
+            'shares': shares,
+            'price': price,
+            'value': shares * price
+        })
     
     def execute_arbitrage(self, opportunity: Dict) -> Dict:
         """Execute an arbitrage opportunity"""
@@ -43,11 +154,13 @@ class TradeExecutor:
         }
         
         try:
-            # Get market info
+            # Get trade details with planned sizing
             buy_market = opportunity['buy_market']
             sell_market = opportunity['sell_market']
             outcome = opportunity['outcome']
-            amount = opportunity['trade_amount']
+            
+            # Use planned position size if available, otherwise default
+            amount = opportunity.get('position_size', opportunity.get('trade_amount', 100))
             
             # Get APIs
             buy_platform = buy_market['platform']
@@ -78,6 +191,16 @@ class TradeExecutor:
                 results['error'] = f"Buy order failed: {buy_result.get('message', 'Unknown error')}"
                 return results
             
+            # Update position for buy
+            self.update_position(
+                buy_platform, 
+                buy_market['id'], 
+                outcome, 
+                amount, 
+                opportunity['buy_price'], 
+                'buy'
+            )
+            
             # Small delay between orders
             time.sleep(1)
             
@@ -95,8 +218,23 @@ class TradeExecutor:
                 results['error'] = f"Sell order failed: {sell_result.get('message', 'Unknown error')}"
                 return results
             
+            # Update position for sell
+            self.update_position(
+                sell_platform, 
+                sell_market['id'], 
+                outcome, 
+                amount, 
+                opportunity['sell_price'], 
+                'sell'
+            )
+            
             results['success'] = True
             print(f"   ✅ Arbitrage executed successfully!")
+            
+            # Show updated balances after trade
+            print(f"   💰 Updated Balances:")
+            print(f"      {buy_platform}: ${self.virtual_balances[buy_platform]:,.2f}")
+            print(f"      {sell_platform}: ${self.virtual_balances[sell_platform]:,.2f}")
             
         except Exception as e:
             results['error'] = f"Execution error: {str(e)}"
