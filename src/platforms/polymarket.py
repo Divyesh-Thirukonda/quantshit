@@ -5,6 +5,7 @@ Polymarket API implementation
 from typing import Dict, List
 
 from .base import BaseMarketAPI
+from .paper_trading import PaperTradingAPI
 
 
 class PolymarketAPI(BaseMarketAPI):
@@ -121,3 +122,77 @@ class PolymarketAPI(BaseMarketAPI):
         except Exception as e:
             print(f"Polymarket search error: {e}")
             return []
+
+
+class PolymarketPaperAPI(PaperTradingAPI):
+    """Paper trading version of Polymarket API"""
+    
+    def __init__(self, initial_balance: float = 10000):
+        super().__init__("polymarket", initial_balance)
+    
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """Paper trading doesn't need real auth headers"""
+        return {
+            'Authorization': 'Bearer paper_trading_token',
+            'Content-Type': 'application/json'
+        }
+    
+    def find_event(self, keyword: str, limit: int = 10) -> List[Dict]:
+        """Search for events by keyword (paper trading version)"""
+        all_markets = self.get_recent_markets(0)
+        keyword_lower = keyword.lower()
+        matching_markets = [
+            market for market in all_markets
+            if keyword_lower in market['title'].lower()
+        ]
+        return matching_markets[:limit]
+    
+    def get_recent_markets(self, min_volume: float = 1000) -> List[Dict]:
+        """Get mock Polymarket markets for paper trading"""
+        return [
+            {
+                'id': 'poly_paper_1',
+                'platform': 'polymarket',
+                'title': 'Will Trump win the 2024 election?',
+                'yes_price': 0.65,
+                'no_price': 0.35,
+                'volume': 50000,
+                'liquidity': 25000
+            },
+            {
+                'id': 'poly_paper_2', 
+                'platform': 'polymarket',
+                'title': 'Fed rate cut by December 2024?',
+                'yes_price': 0.80,
+                'no_price': 0.20,
+                'volume': 30000,
+                'liquidity': 15000
+            },
+            {
+                'id': 'poly_paper_3',
+                'platform': 'polymarket',
+                'title': 'Apple stock to reach $200 by year end',
+                'yes_price': 0.45,
+                'no_price': 0.55,
+                'volume': 25000,
+                'liquidity': 12000
+            },
+            {
+                'id': 'poly_paper_4',
+                'platform': 'polymarket',
+                'title': 'Bitcoin to hit $60k this year',
+                'yes_price': 0.52,
+                'no_price': 0.48,
+                'volume': 40000,
+                'liquidity': 20000
+            },
+            {
+                'id': 'poly_paper_5',
+                'platform': 'polymarket',
+                'title': 'S&P 500 above 5200 by end of year',
+                'yes_price': 0.70,
+                'no_price': 0.30,
+                'volume': 35000,
+                'liquidity': 18000
+            }
+        ]

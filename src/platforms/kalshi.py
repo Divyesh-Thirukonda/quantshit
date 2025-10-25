@@ -5,6 +5,7 @@ Kalshi API implementation
 from typing import Dict, List
 
 from .base import BaseMarketAPI
+from .paper_trading import PaperTradingAPI
 
 
 class KalshiAPI(BaseMarketAPI):
@@ -121,3 +122,77 @@ class KalshiAPI(BaseMarketAPI):
         except Exception as e:
             print(f"Kalshi search error: {e}")
             return []
+
+
+class KalshiPaperAPI(PaperTradingAPI):
+    """Paper trading version of Kalshi API"""
+    
+    def __init__(self, initial_balance: float = 10000):
+        super().__init__("kalshi", initial_balance)
+    
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """Paper trading doesn't need real auth headers"""
+        return {
+            'Authorization': 'Bearer paper_trading_token',
+            'Content-Type': 'application/json'
+        }
+    
+    def find_event(self, keyword: str, limit: int = 10) -> List[Dict]:
+        """Search for events by keyword (paper trading version)"""
+        all_markets = self.get_recent_markets(0)
+        keyword_lower = keyword.lower()
+        matching_markets = [
+            market for market in all_markets
+            if keyword_lower in market['title'].lower()
+        ]
+        return matching_markets[:limit]
+    
+    def get_recent_markets(self, min_volume: float = 1000) -> List[Dict]:
+        """Get mock Kalshi markets for paper trading"""
+        return [
+            {
+                'id': 'kalshi_paper_1',
+                'platform': 'kalshi',
+                'title': 'Trump to win 2024 Presidential Election',
+                'yes_price': 0.62,
+                'no_price': 0.38,
+                'volume': 75000,
+                'liquidity': 40000
+            },
+            {
+                'id': 'kalshi_paper_2',
+                'platform': 'kalshi', 
+                'title': 'Federal Reserve to cut rates in December 2024',
+                'yes_price': 0.78,
+                'no_price': 0.22,
+                'volume': 45000,
+                'liquidity': 20000
+            },
+            {
+                'id': 'kalshi_paper_3',
+                'platform': 'kalshi',
+                'title': 'S&P 500 to close above 5000 by year end',
+                'yes_price': 0.68,
+                'no_price': 0.32,
+                'volume': 35000,
+                'liquidity': 18000
+            },
+            {
+                'id': 'kalshi_paper_4',
+                'platform': 'kalshi',
+                'title': 'Bitcoin above $50k on election day',
+                'yes_price': 0.55,
+                'no_price': 0.45,
+                'volume': 28000,
+                'liquidity': 14000
+            },
+            {
+                'id': 'kalshi_paper_5',
+                'platform': 'kalshi',
+                'title': 'Apple earnings to beat estimates Q4 2024',
+                'yes_price': 0.42,
+                'no_price': 0.58,
+                'volume': 32000,
+                'liquidity': 16000
+            }
+        ]

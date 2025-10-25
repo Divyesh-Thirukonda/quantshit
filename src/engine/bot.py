@@ -5,9 +5,10 @@ from typing import Dict, List
 
 from dotenv import load_dotenv
 
-from .executor import TradeExecutor
+from .directional_executor import DirectionalTradeExecutor
 from ..platforms import get_market_api
-from ..strategies import get_strategy
+from ..strategies.fixed_arbitrage import FixedArbitrageStrategy
+from ..config.environment import env
 
 
 class ArbitrageBot:
@@ -17,30 +18,48 @@ class ArbitrageBot:
         # Load environment variables
         load_dotenv()
         
+        # Get environment-specific configuration
+        config = env.get_api_config()
+        risk_limits = env.get_risk_limits()
+        
+        print(f"🤖 Arbitrage Bot initializing in {env.mode.value.upper()} mode")
+        print(f"   Environment: {env.environment}")
+        
         # Configuration
         self.min_volume = float(os.getenv('MIN_VOLUME', 1000))
-        self.min_spread = float(os.getenv('MIN_SPREAD', 0.05))
+        self.min_spread = risk_limits['min_profit_threshold']
         
-        # API Keys
-        self.api_keys = {
-            'polymarket': os.getenv('POLYMARKET_API_KEY'),
-            'kalshi': os.getenv('KALSHI_API_KEY')
-        }
-        
-        # Remove platforms without API keys
-        self.api_keys = {k: v for k, v in self.api_keys.items() if v}
-        
-        if not self.api_keys:
-            print("⚠️  No API keys found. Running in demo mode.")
+        # API Keys (environment-dependent)
+        if env.is_paper_trading():
+            # Paper trading - use dummy keys for all platforms
+            self.api_keys = {
+                'polymarket': 'paper_trading',
+                'kalshi': 'paper_trading'
+            }
+            print(f"   💰 Paper trading with ${config['initial_balance_per_platform']:.0f} per platform")
+        else:
+            # Live trading - use real API keys
+            credentials = env.get_platform_credentials()
+            self.api_keys = {k: v for k, v in credentials.items() if v and not k.endswith('_private_key')}
+            if not self.api_keys:
+                print("⚠️  No API keys found. Running in demo mode.")
         
         # Initialize components
-        self.strategy = get_strategy('arbitrage', min_spread=self.min_spread)
-        self.executor = TradeExecutor(self.api_keys)
+        self.strategy = FixedArbitrageStrategy(min_spread=self.min_spread)
         
-        print(f"🤖 Arbitrage Bot initialized")
+        # Pass initial balances for paper trading
+        initial_balances = None
+        if env.is_paper_trading():
+            initial_balances = {platform: config['initial_balance_per_platform'] for platform in self.api_keys.keys()}
+        
+        self.executor = DirectionalTradeExecutor(self.api_keys, initial_balances)
+        
         print(f"   Platforms: {list(self.api_keys.keys())}")
         print(f"   Min volume: ${self.min_volume}")
         print(f"   Min spread: {self.min_spread}")
+        
+        if env.is_paper_trading():
+            print(f"   📈 Paper trading limits: max ${config['max_position_size']}/trade, ${config['max_total_exposure']} total exposure")
     
     def collect_market_data(self) -> Dict[str, List[Dict]]:
         """Collect market data from all configured platforms"""
@@ -60,6 +79,25 @@ class ArbitrageBot:
         
         total_markets = sum(len(markets) for markets in markets_by_platform.values())
         print(f"   Total: {total_markets} markets collected")
+        
+        return markets_by_platform
+    
+    def find_opportunities(self, markets_data: Dict[str, List[Dict]]) -> List[Dict]:
+        """Find arbitrage opportunities using the strategy"""
+        print(f"\n🎯 Analyzing arbitrage opportunities...")
+        
+        opportunities = self.strategy.find_opportunities(markets_data)
+        
+        if opportunities:
+            print(f"   Found {len(opportunities)} potential arbitrage opportunities")
+            
+            # Show top 3 opportunities
+            for i, opp in enumerate(opportunities[:3]):
+                print(f"   {i+1}. {opp['outcome']} | Spread: {opp['spread']:.3f} | Profit: ${opp['expected_profit']:.2f}")
+        else:
+            print(f"   No arbitrage opportunities found")
+        
+        return opportunities
         
         return markets_by_platform
     
@@ -166,17 +204,77 @@ class ArbitrageBot:
             error_msg = f"Trade execution failed: {str(e)}"
             print(f"   ❌ {error_msg}")
             return {'success': False, 'error': error_msg}
+    
+    def run_once(self):
+        """Run arbitrage detection once (for testing)"""
+        print(f"\n🔍 Running single arbitrage scan...")
+        
+        # Collect data
+        markets_data = self.collect_market_data()
+        
+        # Find opportunities
+        opportunities = self.find_opportunities(markets_data)
+        
+        # Show capital status if available
+        if hasattr(self.executor, 'get_capital_status'):
+            self.executor.get_capital_status()
+        
+        # Execute opportunities (in paper trading or live based on environment)
+        if opportunities:
+            executed = self.executor.execute_opportunities(opportunities, max_trades=3)
+            
+            # Show final capital status
+            if hasattr(self.executor, 'get_capital_status'):
+                print(f"\n💰 Final Capital Status:")
+                self.executor.get_capital_status()
+        else:
+            print("No profitable arbitrage opportunities found.")
+    
+    def start_scheduling(self):
+        """Start scheduled arbitrage scanning (for production)"""
+        print(f"\n⏰ Starting scheduled arbitrage scanning...")
+        print(f"   Trading mode: {env.mode.value}")
+        print(f"   Scan interval: 30 seconds")
+        print(f"   Press Ctrl+C to stop")
+        
+        try:
+            while True:
+                self.run_once()
+                print(f"\n💤 Waiting 30 seconds before next scan...")
+                time.sleep(30)
+        except KeyboardInterrupt:
+            print(f"\n🛑 Arbitrage bot stopped by user")
 
 
 def main():
-    """Main entry point"""
+    """Main entry point with environment selection"""
+    import sys
+    
+    print("🚀 Quantshit Arbitrage Engine")
+    print(f"Environment: {env}")
+    
+    # Check command line arguments
+    if '--paper' in sys.argv:
+        os.environ['TRADING_MODE'] = 'paper'
+        print("🧪 Forced paper trading mode")
+    elif '--live' in sys.argv:
+        os.environ['TRADING_MODE'] = 'live'
+        print("💰 Forced live trading mode")
+    
+    # Initialize bot
     bot = ArbitrageBot()
     
     # Check if we want to run once or start scheduling
-    import sys
     if '--once' in sys.argv or '--test' in sys.argv:
         bot.run_once()
     else:
+        if env.is_live_trading():
+            print("⚠️  WARNING: You are about to start LIVE TRADING with real money!")
+            response = input("Are you sure you want to continue? (yes/no): ")
+            if response.lower() != 'yes':
+                print("Exiting...")
+                return
+        
         bot.start_scheduling()
 
 

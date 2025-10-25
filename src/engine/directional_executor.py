@@ -1,3 +1,7 @@
+"""
+Fixed trade executor for directional arbitrage
+"""
+
 import time
 from typing import Dict, List
 
@@ -5,8 +9,8 @@ from ..platforms import get_market_api
 from .capital_manager import CapitalManager, RiskManager
 
 
-class TradeExecutor:
-    """Handles trade execution across different platforms with real capital management"""
+class DirectionalTradeExecutor:
+    """Handles directional arbitrage execution (buy on both platforms)"""
     
     def __init__(self, api_keys: Dict[str, str], initial_balances: Dict[str, float] = None):
         self.api_keys = api_keys
@@ -39,17 +43,17 @@ class TradeExecutor:
             except Exception as e:
                 print(f"✗ Failed to initialize {platform} API: {e}")
     
-    def execute_arbitrage(self, opportunity: Dict) -> Dict:
-        """Execute an arbitrage opportunity with real capital checks"""
-        print(f"\n🔄 Executing arbitrage opportunity:")
-        print(f"   Outcome: {opportunity['outcome']}")
+    def execute_directional_arbitrage(self, opportunity: Dict) -> Dict:
+        """Execute a directional arbitrage opportunity (buy on both platforms)"""
+        print(f"\n🔄 Executing directional arbitrage:")
+        print(f"   Strategy: {opportunity['strategy']}")
         print(f"   Expected profit: ${opportunity['expected_profit']:.4f}")
-        print(f"   Spread: {opportunity['spread']:.4f}")
+        print(f"   Total cost: ${opportunity['total_cost']:.4f}")
         
         results = {
             'success': False,
-            'buy_result': None,
-            'sell_result': None,
+            'trade_a_result': None,
+            'trade_b_result': None,
             'error': None
         }
         
@@ -60,101 +64,90 @@ class TradeExecutor:
                 results['error'] = f"Risk limits exceeded: {', '.join(risk_check['reasons'])}"
                 return results
             
-            # Check capital feasibility
-            feasibility = self.capital_manager.check_arbitrage_feasibility(opportunity)
-            if not feasibility['feasible']:
-                results['error'] = f"Insufficient capital: {', '.join(feasibility['reasons'])}"
-                return results
-            
-            # Reserve capital for this trade
-            if not self.capital_manager.reserve_capital(opportunity):
-                results['error'] = "Failed to reserve capital"
-                return results
-            
-            # Get market info
-            buy_market = opportunity['buy_market']
-            sell_market = opportunity['sell_market']
-            outcome = opportunity['outcome']
+            platform_a = opportunity['platform_a']
+            platform_b = opportunity['platform_b']
+            market_a = opportunity['market_a']
+            market_b = opportunity['market_b']
             amount = opportunity['trade_amount']
             
             # Get APIs
-            buy_platform = buy_market['platform']
-            sell_platform = sell_market['platform']
-            
-            if buy_platform not in self.apis:
-                results['error'] = f"No API for buy platform: {buy_platform}"
-                self.capital_manager.release_capital(opportunity, results)
+            if platform_a not in self.apis or platform_b not in self.apis:
+                results['error'] = f"Missing API for platforms: {platform_a}, {platform_b}"
                 return results
             
-            if sell_platform not in self.apis:
-                results['error'] = f"No API for sell platform: {sell_platform}"
-                self.capital_manager.release_capital(opportunity, results)
-                return results
+            api_a = self.apis[platform_a]
+            api_b = self.apis[platform_b]
             
-            buy_api = self.apis[buy_platform]
-            sell_api = self.apis[sell_platform]
+            # Calculate required funds for both trades
+            if opportunity['strategy'] == 'YES_A_NO_B':
+                cost_a = amount * opportunity['yes_price_a']
+                cost_b = amount * opportunity['no_price_b']
+                
+                print(f"   📈 Buying {amount} YES shares on {platform_a} at ${opportunity['yes_price_a']:.4f}")
+                trade_a_result = api_a.place_buy_order(
+                    market_a['id'], 'YES', amount, opportunity['yes_price_a']
+                )
+                results['trade_a_result'] = trade_a_result
+                
+                if not trade_a_result.get('success'):
+                    results['error'] = f"Trade A failed: {trade_a_result.get('message', 'Unknown error')}"
+                    return results
+                
+                time.sleep(1)  # Brief delay
+                
+                print(f"   📉 Buying {amount} NO shares on {platform_b} at ${opportunity['no_price_b']:.4f}")
+                trade_b_result = api_b.place_buy_order(
+                    market_b['id'], 'NO', amount, opportunity['no_price_b']
+                )
+                results['trade_b_result'] = trade_b_result
+                
+            elif opportunity['strategy'] == 'NO_A_YES_B':
+                cost_a = amount * opportunity['no_price_a']
+                cost_b = amount * opportunity['yes_price_b']
+                
+                print(f"   📉 Buying {amount} NO shares on {platform_a} at ${opportunity['no_price_a']:.4f}")
+                trade_a_result = api_a.place_buy_order(
+                    market_a['id'], 'NO', amount, opportunity['no_price_a']
+                )
+                results['trade_a_result'] = trade_a_result
+                
+                if not trade_a_result.get('success'):
+                    results['error'] = f"Trade A failed: {trade_a_result.get('message', 'Unknown error')}"
+                    return results
+                
+                time.sleep(1)  # Brief delay
+                
+                print(f"   📈 Buying {amount} YES shares on {platform_b} at ${opportunity['yes_price_b']:.4f}")
+                trade_b_result = api_b.place_buy_order(
+                    market_b['id'], 'YES', amount, opportunity['yes_price_b']
+                )
+                results['trade_b_result'] = trade_b_result
             
-            # Execute buy order
-            print(f"   📈 Buying {amount} shares of {outcome} on {buy_platform} at ${opportunity['buy_price']:.4f}")
-            buy_result = buy_api.place_buy_order(
-                buy_market['id'],
-                outcome,
-                amount,
-                opportunity['buy_price']
-            )
-            results['buy_result'] = buy_result
-            
-            print(f"   🔍 Buy result: {buy_result}")  # Debug output
-            
-            if not buy_result.get('success'):
-                results['error'] = f"Buy order failed: {buy_result.get('message', 'Unknown error')}"
-                self.capital_manager.release_capital(opportunity, results)
-                return results
-            
-            # Small delay between orders
-            time.sleep(1)
-            
-            # Execute sell order
-            print(f"   📉 Selling {amount} shares of {outcome} on {sell_platform} at ${opportunity['sell_price']:.4f}")
-            sell_result = sell_api.place_sell_order(
-                sell_market['id'],
-                outcome,
-                amount,
-                opportunity['sell_price']
-            )
-            results['sell_result'] = sell_result
-            
-            print(f"   🔍 Sell result: {sell_result}")  # Debug output
-            
-            if not sell_result.get('success'):
-                results['error'] = f"Sell order failed: {sell_result.get('message', 'Unknown error')}"
-                # Note: In a real system, you'd need to handle the case where buy succeeded but sell failed
-                # This might require canceling the buy order or holding the position
-                self.capital_manager.release_capital(opportunity, results)
+            if not trade_b_result.get('success'):
+                results['error'] = f"Trade B failed: {trade_b_result.get('message', 'Unknown error')}"
                 return results
             
             results['success'] = True
-            print(f"   ✅ Arbitrage executed successfully!")
+            print(f"   ✅ Directional arbitrage executed successfully!")
+            print(f"   💰 Profit when event resolves: ${opportunity['expected_profit']:.4f}")
             
             # Record successful trade
             self.risk_manager.record_trade(opportunity['expected_profit'], True)
-            self.capital_manager.release_capital(opportunity, results)
             
         except Exception as e:
             results['error'] = f"Execution error: {str(e)}"
             print(f"   ❌ Execution failed: {e}")
             self.risk_manager.record_trade(0, False)
-            self.capital_manager.release_capital(opportunity, results)
         
         return results
     
     def execute_opportunities(self, opportunities: List[Dict], max_trades: int = 3) -> List[Dict]:
-        """Execute multiple arbitrage opportunities"""
+        """Execute multiple directional arbitrage opportunities"""
         if not opportunities:
             print("No arbitrage opportunities found.")
             return []
         
-        print(f"\n🎯 Found {len(opportunities)} arbitrage opportunities")
+        print(f"\n🎯 Found {len(opportunities)} directional arbitrage opportunities")
         
         executed_trades = []
         trades_executed = 0
@@ -163,15 +156,13 @@ class TradeExecutor:
             print(f"\n--- Trade {i + 1}/{min(len(opportunities), max_trades)} ---")
             
             # Show opportunity details
-            buy_market = opportunity['buy_market']
-            sell_market = opportunity['sell_market']
-            
-            print(f"Market Match:")
-            print(f"  Buy:  [{buy_market['platform']}] {buy_market['title'][:60]}...")
-            print(f"  Sell: [{sell_market['platform']}] {sell_market['title'][:60]}...")
+            print(f"Strategy: {opportunity['strategy']}")
+            print(f"  Platform A: [{opportunity['platform_a']}] {opportunity['market_a']['title'][:50]}...")
+            print(f"  Platform B: [{opportunity['platform_b']}] {opportunity['market_b']['title'][:50]}...")
+            print(f"  Expected profit: ${opportunity['expected_profit']:.4f}")
             
             # Execute the trade
-            result = self.execute_arbitrage(opportunity)
+            result = self.execute_directional_arbitrage(opportunity)
             result['opportunity'] = opportunity
             executed_trades.append(result)
             

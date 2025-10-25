@@ -18,15 +18,17 @@ import json
 # Import our main application components
 try:
     from src.engine.bot import ArbitrageBot
+    from src.config.environment import env
 except ImportError:
     # Fallback for Vercel environment where some imports might fail
     ArbitrageBot = None
+    env = None
 
 # Create FastAPI app
 app = FastAPI(
     title="Quantshit Arbitrage Engine", 
     version="1.0.0",
-    description="Cross-venue prediction market arbitrage detection API"
+    description=f"Cross-venue prediction market arbitrage detection API ({os.getenv('TRADING_MODE', 'paper')} mode)"
 )
 
 # Global bot instance
@@ -83,13 +85,16 @@ async def startup_event():
 @app.get("/")
 async def root():
     """API information and usage"""
+    trading_mode = os.getenv('TRADING_MODE', 'paper')
     return {
         "service": "Quantshit Arbitrage Engine",
         "version": "1.0.0", 
         "description": "Cross-venue prediction market arbitrage detection API",
         "deployment": "Vercel Serverless",
+        "trading_mode": trading_mode,
         "endpoints": {
             "GET /health": "Service health check",
+            "GET /status": "Trading environment and capital status",
             "POST /scan": "Scan for arbitrage opportunities (JSON body: size, strategy, venues, min_edge)",
             "POST /execute/{opportunity_id}": "Execute arbitrage trade"
         },
@@ -102,12 +107,45 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    trading_mode = os.getenv('TRADING_MODE', 'paper')
     return {
         "status": "healthy", 
         "timestamp": datetime.utcnow().isoformat(),
         "environment": "vercel",
+        "trading_mode": trading_mode,
         "bot_initialized": bot is not None
     }
+
+@app.get("/status")
+async def status_check():
+    """Get detailed status including trading environment and capital"""
+    trading_mode = os.getenv('TRADING_MODE', 'paper')
+    
+    if bot and hasattr(bot, 'executor') and hasattr(bot.executor, 'get_capital_status'):
+        try:
+            capital_status = bot.executor.get_capital_status()
+            return {
+                "trading_mode": trading_mode,
+                "environment": os.getenv('ENVIRONMENT', 'development'),
+                "bot_status": "active",
+                "capital": capital_status,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            return {
+                "trading_mode": trading_mode,
+                "environment": os.getenv('ENVIRONMENT', 'development'),
+                "bot_status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    else:
+        return {
+            "trading_mode": trading_mode,
+            "environment": os.getenv('ENVIRONMENT', 'development'),
+            "bot_status": "not_initialized",
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 @app.post("/scan")
 async def scan_opportunities(request: ScanRequest):
@@ -149,7 +187,7 @@ async def scan_opportunities(request: ScanRequest):
                     "scanned_markets": sum(len(markets) for markets in markets_data.values()),
                     "opportunities_found": len(filtered_ops),
                     "timestamp": datetime.utcnow().isoformat(),
-                    "parameters": {"size": size, "min_edge": min_edge},
+                    "parameters": {"size": request.size, "min_edge": request.min_edge},
                     "source": "live_data"
                 }
             }
@@ -164,7 +202,7 @@ async def scan_opportunities(request: ScanRequest):
                     "scanned_markets": 25,
                     "opportunities_found": len(filtered_mock),
                     "timestamp": datetime.utcnow().isoformat(),
-                    "parameters": {"size": size, "min_edge": min_edge},
+                    "parameters": {"size": request.size, "min_edge": request.min_edge},
                     "source": "mock_data",
                     "note": "Add API keys to environment variables for live data"
                 }
