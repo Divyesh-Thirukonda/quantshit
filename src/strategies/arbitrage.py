@@ -1,5 +1,9 @@
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
+from datetime import datetime
+from .planning import PortfolioPlanner, RiskManager
+from ..types import Market, ArbitrageOpportunity, Opportunities, Outcome
+from ..adapters import MarketAdapter, OpportunityAdapter, LegacyCompat
 
 
 class BaseStrategy:
@@ -14,19 +18,188 @@ class BaseStrategy:
 
 
 class ArbitrageStrategy(BaseStrategy):
-    """Simple arbitrage strategy that finds price differences across platforms"""
+    """Arbitrage strategy with intelligent position sizing and risk management"""
     
-    def __init__(self, min_spread: float = 0.05):
+    def __init__(self, min_spread: float = 0.05, use_planning: bool = True):
         super().__init__("arbitrage")
         self.min_spread = min_spread
+        self.use_planning = use_planning
+        
+        if use_planning:
+            self.planner = PortfolioPlanner(
+                max_position_pct=0.15,  # Max 15% per position
+                max_platform_pct=0.65,  # Max 65% per platform
+                correlation_threshold=0.7,
+                min_cash_reserve=0.25    # Keep 25% cash
+            )
+            self.risk_manager = RiskManager()
+        else:
+            self.planner = None
+            self.risk_manager = None
     
-    def find_opportunities(self, markets_by_platform: Dict[str, List[Dict]]) -> List[Dict]:
-        """Find arbitrage opportunities between platforms"""
+    def find_opportunities(self, markets_by_platform: Dict[str, List], 
+                          portfolio_summary: Dict = None) -> List:
+        """Find arbitrage opportunities with optional portfolio-aware planning
+        
+        Args:
+            markets_by_platform: Dict mapping platform names to market lists (dict or Market objects)
+            portfolio_summary: Current portfolio state for planning
+            
+        Returns:
+            List of opportunities (ArbitrageOpportunity objects or dicts for compatibility)
+        """
+        # Convert input to typed format if needed
+        typed_markets = {}
+        for platform_name, markets_list in markets_by_platform.items():
+            if markets_list and isinstance(markets_list[0], dict):
+                # Convert legacy dict format to typed format
+                typed_markets[platform_name] = MarketAdapter.from_dict_list(markets_list)
+            else:
+                # Already in typed format
+                typed_markets[platform_name] = markets_list
+        
+        # Find opportunities using typed system
+        typed_opportunities = self._find_typed_opportunities(typed_markets, portfolio_summary)
+        
+        # Convert back to legacy format for backwards compatibility
+        legacy_opportunities = OpportunityAdapter.to_dict_list(typed_opportunities)
+        
+        return legacy_opportunities
+    
+    def _find_typed_opportunities(self, markets_by_platform: Dict[str, List[Market]], 
+                                portfolio_summary: Dict = None) -> List[ArbitrageOpportunity]:
+        """Find opportunities using typed system"""
         opportunities = []
         
         platforms = list(markets_by_platform.keys())
         if len(platforms) < 2:
             return opportunities
+        
+        # Find basic arbitrage opportunities
+        raw_opportunities = self._find_raw_typed_opportunities(markets_by_platform)
+        
+        # Apply strategic planning if enabled and portfolio data available
+        if self.use_planning and self.planner and portfolio_summary:
+            print(f"\n🎯 Found {len(raw_opportunities)} raw opportunities")
+            
+            # Convert to legacy format for planner (temporary compatibility)
+            legacy_raw = OpportunityAdapter.to_dict_list(raw_opportunities)
+            planned_legacy = self.planner.plan_trades(legacy_raw, portfolio_summary)
+            planned_opportunities = OpportunityAdapter.from_dict_list(planned_legacy)
+            
+            # Show planning results
+            if planned_opportunities:
+                print(f"\n📋 Strategic Planning Results:")
+                for i, opp in enumerate(planned_opportunities[:3], 1):
+                    kelly_pct = (opp.kelly_fraction or 0) * 100
+                    risk_adj_pct = (opp.risk_adjustment or 1) * 100
+                    print(f"   {i}. {opp.outcome.value} | Size: {opp.recommended_quantity} shares | "
+                          f"Kelly: {kelly_pct:.1f}% | Risk Adj: {risk_adj_pct:.1f}%")
+                    print(f"      Expected: ${opp.expected_profit:.2f} | "
+                          f"Win Prob: {(opp.win_probability or 0)*100:.1f}%")
+            
+            return planned_opportunities
+        else:
+            # Use simple fixed-size approach
+            return raw_opportunities[:3]  # Limit to top 3
+    
+    def _find_raw_typed_opportunities(self, markets_by_platform: Dict[str, List[Market]]) -> List[ArbitrageOpportunity]:
+        """Find basic arbitrage opportunities using typed system"""
+        opportunities = []
+        platforms = list(markets_by_platform.keys())
+        
+        # Compare markets between all platform pairs
+        for i in range(len(platforms)):
+            for j in range(i + 1, len(platforms)):
+                platform1, platform2 = platforms[i], platforms[j]
+                markets1 = markets_by_platform[platform1]
+                markets2 = markets_by_platform[platform2]
+                
+                # Find matching markets
+                matches = self._find_typed_market_matches(markets1, markets2)
+                
+                # Calculate arbitrage opportunities
+                for market1, market2 in matches:
+                    arb_ops = self._calculate_typed_arbitrage(market1, market2)
+                    opportunities.extend(arb_ops)
+        
+        # Sort by profitability
+        opportunities.sort(key=lambda x: x.expected_profit_per_share, reverse=True)
+        return opportunities
+    
+    def _find_typed_market_matches(self, markets1: List[Market], markets2: List[Market]) -> List[Tuple[Market, Market]]:
+        """Find matching markets between two platforms using typed system"""
+        matches = []
+        
+        for market1 in markets1:
+            for market2 in markets2:
+                if self._are_markets_similar(market1.title, market2.title):
+                    matches.append((market1, market2))
+        
+        return matches
+    
+    def _calculate_typed_arbitrage(self, market1: Market, market2: Market) -> List[ArbitrageOpportunity]:
+        """Calculate arbitrage opportunities between two typed markets"""
+        opportunities = []
+        
+        # Check YES arbitrage
+        yes_spread = abs(market1.yes_price - market2.yes_price)
+        if yes_spread >= self.min_spread:
+            if market1.yes_price < market2.yes_price:
+                buy_market, sell_market = market1, market2
+                buy_price, sell_price = market1.yes_price, market2.yes_price
+            else:
+                buy_market, sell_market = market2, market1
+                buy_price, sell_price = market2.yes_price, market1.yes_price
+            
+            profit_per_share = sell_price - buy_price
+            opp_id = f"{buy_market.id}_{sell_market.id}_YES_{int(datetime.now().timestamp())}"
+            
+            opportunity = ArbitrageOpportunity(
+                id=opp_id,
+                buy_market=buy_market,
+                sell_market=sell_market,
+                outcome=Outcome.YES,
+                buy_price=buy_price,
+                sell_price=sell_price,
+                spread=yes_spread,
+                expected_profit_per_share=profit_per_share,
+                confidence_score=min(1.0, yes_spread * 10),
+                max_quantity=100
+            )
+            opportunities.append(opportunity)
+        
+        # Check NO arbitrage
+        no_spread = abs(market1.no_price - market2.no_price)
+        if no_spread >= self.min_spread:
+            if market1.no_price < market2.no_price:
+                buy_market, sell_market = market1, market2
+                buy_price, sell_price = market1.no_price, market2.no_price
+            else:
+                buy_market, sell_market = market2, market1
+                buy_price, sell_price = market2.no_price, market1.no_price
+            
+            profit_per_share = sell_price - buy_price
+            opp_id = f"{buy_market.id}_{sell_market.id}_NO_{int(datetime.now().timestamp())}"
+            
+            opportunity = ArbitrageOpportunity(
+                id=opp_id,
+                buy_market=buy_market,
+                sell_market=sell_market,
+                outcome=Outcome.NO,
+                buy_price=buy_price,
+                sell_price=sell_price,
+                spread=no_spread,
+                expected_profit_per_share=profit_per_share,
+                confidence_score=min(1.0, no_spread * 10),
+                max_quantity=100
+            )
+            opportunities.append(opportunity)
+        
+        return opportunities
+        """Find basic arbitrage opportunities without planning"""
+        opportunities = []
+        platforms = list(markets_by_platform.keys())
         
         # Compare markets between all platform pairs
         for i in range(len(platforms)):
@@ -218,20 +391,19 @@ class ArbitrageStrategy(BaseStrategy):
                 buy_market, sell_market = market2, market1
                 buy_price, sell_price = market2['yes_price'], market1['yes_price']
             
-            profit = sell_price - buy_price
-            opportunities.append({
-                'type': 'arbitrage',
-                'outcome': 'YES',
-                'buy_market': buy_market,
-                'sell_market': sell_market,
-                'buy_price': buy_price,
-                'sell_price': sell_price,
-                'spread': yes_spread,
-                'expected_profit': profit,
-                'trade_amount': 100  # Fixed amount for simplicity
-            })
-        
-        # Check NO arbitrage
+                profit = sell_price - buy_price
+                opportunities.append({
+                    'type': 'arbitrage',
+                    'outcome': 'YES',
+                    'buy_market': buy_market,
+                    'sell_market': sell_market,
+                    'buy_price': buy_price,
+                    'sell_price': sell_price,
+                    'spread': yes_spread,
+                    'expected_profit': profit,
+                    'trade_amount': 100,  # Will be overridden by planner
+                    'base_position_size': 100  # Default size before planning
+                })        # Check NO arbitrage
         no_spread = abs(market1['no_price'] - market2['no_price'])
         if no_spread >= self.min_spread:
             if market1['no_price'] < market2['no_price']:
@@ -241,18 +413,19 @@ class ArbitrageStrategy(BaseStrategy):
                 buy_market, sell_market = market2, market1
                 buy_price, sell_price = market2['no_price'], market1['no_price']
             
-            profit = sell_price - buy_price
-            opportunities.append({
-                'type': 'arbitrage',
-                'outcome': 'NO',
-                'buy_market': buy_market,
-                'sell_market': sell_market,
-                'buy_price': buy_price,
-                'sell_price': sell_price,
-                'spread': no_spread,
-                'expected_profit': profit,
-                'trade_amount': 100
-            })
+                profit = sell_price - buy_price
+                opportunities.append({
+                    'type': 'arbitrage',
+                    'outcome': 'NO',
+                    'buy_market': buy_market,
+                    'sell_market': sell_market,
+                    'buy_price': buy_price,
+                    'sell_price': sell_price,
+                    'spread': no_spread,
+                    'expected_profit': profit,
+                    'trade_amount': 100,  # Will be overridden by planner
+                    'base_position_size': 100  # Default size before planning
+                })
         
         return opportunities
 

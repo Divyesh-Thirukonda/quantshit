@@ -30,8 +30,8 @@ class ArbitrageBot:
             'kalshi': os.getenv('KALSHI_API_KEY', 'paper_trading_key')
         }
         
-        # Initialize components
-        self.strategy = get_strategy('arbitrage', min_spread=self.min_spread)
+        # Initialize components with planning enabled
+        self.strategy = get_strategy('arbitrage', min_spread=self.min_spread, use_planning=True)
         self.executor = TradeExecutor(self.api_keys, paper_trading=True)
         
         print(f"   Platforms: {list(self.api_keys.keys())} (simulated)")
@@ -174,39 +174,130 @@ class ArbitrageBot:
         # Find opportunities
         opportunities = self.find_opportunities(markets_data)
         
-        # Show virtual balances
-        balances = self.executor.get_virtual_balances()
-        print(f"\n💰 Virtual Balances:")
-        for platform, balance in balances.items():
-            print(f"   {platform}: ${balance:,.2f}")
+        # Show portfolio summary
+        portfolio = self.executor.get_portfolio_summary()
+        print(f"\n💰 Portfolio Summary:")
+        for platform, data in portfolio.items():
+            if platform != 'total_portfolio_value':
+                print(f"   {platform}:")
+                print(f"      Cash: ${data['cash']:,.2f}")
+                print(f"      Positions: ${data['position_value']:,.2f}")
+                print(f"      Total: ${data['total_value']:,.2f}")
+                
+                if data['positions']:
+                    print(f"      Holdings:")
+                    for pos in data['positions']:
+                        print(f"        • {pos['market']}: {pos['shares']} shares @ ${pos['avg_price']:.4f}")
+        
+        print(f"\n💎 Total Portfolio Value: ${portfolio['total_portfolio_value']:,.2f}")
+        
+        # Show risk assessment if we have positions
+        if any(data.get('positions') for platform, data in portfolio.items() if platform != 'total_portfolio_value'):
+            from ..strategies.planning import RiskManager
+            risk_mgr = RiskManager()
+            risk_metrics = risk_mgr.assess_portfolio_risk(portfolio, [])
+            
+            print(f"\n⚠️ Risk Assessment:")
+            print(f"   Correlation Risk: {risk_metrics['correlation_risk']*100:.1f}%")
+            print(f"   Concentration Risk: {risk_metrics['concentration_risk']*100:.1f}%")
+            print(f"   Overall Risk Score: {risk_metrics['overall_risk_score']*100:.1f}%")
         
         # Execute opportunities
         if opportunities:
             executed = self.executor.execute_opportunities(opportunities, max_trades=3)
             
-            # Show final balances
-            final_balances = self.executor.get_virtual_balances()
-            print(f"\n💰 Final Virtual Balances:")
-            for platform, balance in final_balances.items():
-                print(f"   {platform}: ${balance:,.2f}")
+            # Show final portfolio summary
+            final_portfolio = self.executor.get_portfolio_summary()
+            print(f"\n💰 Final Portfolio Summary:")
+            for platform, data in final_portfolio.items():
+                if platform != 'total_portfolio_value':
+                    print(f"   {platform}:")
+                    print(f"      Cash: ${data['cash']:,.2f}")
+                    print(f"      Positions: ${data['position_value']:,.2f}")
+                    print(f"      Total: ${data['total_value']:,.2f}")
+                    
+                    if data['positions']:
+                        print(f"      Active Positions:")
+                        for pos in data['positions']:
+                            pnl = pos['current_value'] - (pos['shares'] * pos['avg_price'])
+                            pnl_str = f"(+${pnl:.2f})" if pnl >= 0 else f"(-${abs(pnl):.2f})"
+                            print(f"        • {pos['market']}: {pos['shares']} shares @ ${pos['avg_price']:.4f} = ${pos['current_value']:.2f} {pnl_str}")
+            
+            print(f"\n💎 Total Portfolio Value: ${final_portfolio['total_portfolio_value']:,.2f}")
+            
+            # Show trade history
+            if hasattr(self.executor, 'trade_history') and self.executor.trade_history:
+                print(f"\n📊 Trade History ({len(self.executor.trade_history)} trades):")
+                for i, trade in enumerate(self.executor.trade_history[-5:], 1):  # Show last 5 trades
+                    print(f"   {i}. {trade['action'].upper()} {trade['shares']} {trade['outcome']} on {trade['platform']} @ ${trade['price']:.4f}")
         else:
             print("No profitable arbitrage opportunities found.")
     
     def find_opportunities(self, markets_data: Dict[str, List[Dict]]) -> List[Dict]:
-        """Find arbitrage opportunities using the strategy"""
+        """Find arbitrage opportunities using the strategy with portfolio awareness"""
         print(f"\n🎯 Analyzing arbitrage opportunities...")
         
-        opportunities = self.strategy.find_opportunities(markets_data)
+        # Get current portfolio summary for planning
+        portfolio_summary = self.executor.get_portfolio_summary()
+        
+        # Use portfolio-aware strategy
+        opportunities = self.strategy.find_opportunities(markets_data, portfolio_summary)
         
         if opportunities:
-            print(f"   Found {len(opportunities)} potential arbitrage opportunities")
-            # Show top 3 opportunities
+            print(f"   Final selected opportunities: {len(opportunities)}")
+            # Show top opportunities
             for i, opp in enumerate(opportunities[:3]):
-                print(f"   {i+1}. {opp['outcome']} | Spread: {opp['spread']:.3f} | Profit: ${opp['expected_profit']:.2f}")
+                if 'position_size' in opp:  # Planned opportunity
+                    size = opp['position_size']
+                    expected_return = opp['expected_profit'] * size
+                    print(f"   {i+1}. {opp['outcome']} | Size: {size} shares | "
+                          f"Spread: {opp['spread']:.3f} | Expected: ${expected_return:.2f}")
+                else:  # Simple opportunity
+                    print(f"   {i+1}. {opp['outcome']} | Spread: {opp['spread']:.3f} | "
+                          f"Profit: ${opp['expected_profit']:.2f}")
         else:
             print(f"   No arbitrage opportunities found")
         
         return opportunities
+    
+    def show_portfolio_status(self):
+        """Display current portfolio status"""
+        portfolio = self.executor.get_portfolio_summary()
+        
+        print(f"\n💼 Current Portfolio Status:")
+        print(f"{'='*50}")
+        
+        total_initial = len(self.api_keys) * 10000  # $10k per platform initially
+        total_current = portfolio['total_portfolio_value']
+        total_pnl = total_current - total_initial
+        
+        print(f"📊 Overall Performance:")
+        print(f"   Initial Value: ${total_initial:,.2f}")
+        print(f"   Current Value: ${total_current:,.2f}")
+        pnl_color = "+" if total_pnl >= 0 else ""
+        print(f"   P&L: {pnl_color}${total_pnl:,.2f} ({((total_current/total_initial - 1) * 100):+.2f}%)")
+        
+        print(f"\n🏦 By Platform:")
+        for platform, data in portfolio.items():
+            if platform != 'total_portfolio_value':
+                initial_value = 10000
+                current_value = data['total_value']
+                platform_pnl = current_value - initial_value
+                
+                print(f"   {platform.upper()}:")
+                print(f"      Cash: ${data['cash']:,.2f}")
+                print(f"      Positions: ${data['position_value']:,.2f}")
+                print(f"      Total: ${data['total_value']:,.2f}")
+                pnl_color = "+" if platform_pnl >= 0 else ""
+                print(f"      P&L: {pnl_color}${platform_pnl:,.2f}")
+                
+                if data['positions']:
+                    print(f"      Active Positions ({len(data['positions'])}):")
+                    for pos in data['positions']:
+                        print(f"        • {pos['shares']} shares of {pos['market']} @ ${pos['avg_price']:.4f}")
+                print()
+        
+        print(f"{'='*50}")
 
 
 def main():
