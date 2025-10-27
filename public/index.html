@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantshit | Arbitrage Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .status-live {
+            animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .scanner-line {
+            animation: scanner 2s linear infinite;
+        }
+        @keyframes scanner {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans">
+    <!-- Header -->
+    <header class="gradient-bg shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Quantshit</h1>
+                    <p class="text-purple-200 text-sm">Cross-Venue Arbitrage Engine</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="status-live w-3 h-3 bg-green-400 rounded-full"></div>
+                    <span class="text-white text-sm font-medium">LIVE</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="container mx-auto px-6 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Markets Scanned</p>
+                        <p id="markets-scanned" class="text-3xl font-bold text-white">-</p>
+                    </div>
+                    <div class="text-4xl">🔍</div>
+                </div>
+            </div>
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Opportunities Found</p>
+                        <p id="opportunities-found" class="text-3xl font-bold text-green-400">-</p>
+                    </div>
+                    <div class="text-4xl">💎</div>
+                </div>
+            </div>
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Active Platforms</p>
+                        <p id="platforms-active" class="text-3xl font-bold text-blue-400">-</p>
+                    </div>
+                    <div class="text-4xl">🌐</div>
+                </div>
+            </div>
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Portfolio Value</p>
+                        <p id="portfolio-value" class="text-3xl font-bold text-purple-400">$-</p>
+                    </div>
+                    <div class="text-4xl">💰</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 pb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Opportunities & Trades -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Arbitrage Opportunities -->
+                <div class="glass-effect rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white">💎 Arbitrage Opportunities</h2>
+                        <button onclick="refreshOpportunities()" class="text-purple-400 hover:text-purple-300 text-sm">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                    <div id="opportunities-container" class="space-y-3">
+                        <!-- Opportunities will be populated here -->
+                        <div class="text-center text-gray-400 py-8">
+                            <div class="text-4xl mb-2">📊</div>
+                            <p>Scanning markets...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Trades -->
+                <div class="glass-effect rounded-lg p-6">
+                    <h2 class="text-xl font-bold text-white mb-4">⚡ Recent Trades</h2>
+                    <div id="trades-container" class="space-y-3">
+                        <!-- Trades will be populated here -->
+                        <div class="text-center text-gray-400 py-8">
+                            <div class="text-4xl mb-2">📈</div>
+                            <p>Loading trade history...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Activity Feed -->
+            <div class="space-y-6">
+                <!-- Live Activity -->
+                <div class="glass-effect rounded-lg p-6">
+                    <h2 class="text-xl font-bold text-white mb-4">📡 Live Activity</h2>
+                    <div id="activity-container" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- Activity items will be populated here -->
+                        <div class="text-center text-gray-400 py-8">
+                            <div class="text-4xl mb-2">⏳</div>
+                            <p>Waiting for activity...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Scanner Status -->
+                <div class="glass-effect rounded-lg p-6">
+                    <h2 class="text-xl font-bold text-white mb-4">🔍 Scanner Status</h2>
+                    <div class="space-y-3">
+                        <div id="scanner-polymarket" class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-green-400 rounded-full status-live"></div>
+                                <span class="text-white">Polymarket</span>
+                            </div>
+                            <span class="text-gray-400 text-sm">Active</span>
+                        </div>
+                        <div id="scanner-kalshi" class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-green-400 rounded-full status-live"></div>
+                                <span class="text-white">Kalshi</span>
+                            </div>
+                            <span class="text-gray-400 text-sm">Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        // Detect if running locally (port 8000) or on Vercel (no port)
+        const isLocal = window.location.port === '8000';
+        const API_BASE = isLocal ? window.location.origin : window.location.origin + '/api';
+        const POLLING_INTERVAL = 5000; // 5 seconds
+
+        // State
+        let lastActivityId = null;
+
+        // Utility: Format timestamp
+        function formatTimestamp(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+
+            if (diff < 60) return `${diff}s ago`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Utility: Format currency
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(value);
+        }
+
+        // Fetch dashboard stats
+        async function fetchStats() {
+            try {
+                const endpoint = isLocal ? '/dashboard/stats' : '/dashboard/stats';
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('markets-scanned').textContent = data.stats.total_markets_scanned;
+                    document.getElementById('opportunities-found').textContent = data.stats.opportunities_found;
+                    document.getElementById('platforms-active').textContent = data.stats.platforms_active;
+                    document.getElementById('portfolio-value').textContent = formatCurrency(data.stats.portfolio_value);
+                }
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        // Fetch and render opportunities
+        async function fetchOpportunities() {
+            try {
+                const endpoint = isLocal ? '/scan' : '/scan';
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        size: 250,
+                        strategy: 'binary_box',
+                        venues: ['kalshi', 'polymarket'],
+                        min_edge: 0.05
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success && data.opportunities.length > 0) {
+                    renderOpportunities(data.opportunities);
+                } else {
+                    document.getElementById('opportunities-container').innerHTML = `
+                        <div class="text-center text-gray-400 py-8">
+                            <div class="text-4xl mb-2">😴</div>
+                            <p>No arbitrage opportunities found</p>
+                            <p class="text-sm mt-2">Spreads may be too tight right now</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error fetching opportunities:', error);
+                document.getElementById('opportunities-container').innerHTML = `
+                    <div class="text-center text-red-400 py-8">
+                        <div class="text-4xl mb-2">⚠️</div>
+                        <p>Error loading opportunities</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render opportunities
+        function renderOpportunities(opportunities) {
+            const container = document.getElementById('opportunities-container');
+
+            if (opportunities.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <p>No opportunities at the moment</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = opportunities.slice(0, 5).map(opp => `
+                <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                            <h3 class="text-white font-medium mb-1">${opp.question}</h3>
+                            <div class="flex items-center space-x-2 text-sm">
+                                <span class="text-blue-400">Buy: ${opp.yes_venue}</span>
+                                <span class="text-gray-500">→</span>
+                                <span class="text-purple-400">Sell: ${opp.no_venue}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-green-400 font-bold">${opp.edge_bps} bps</div>
+                            <div class="text-sm text-gray-400">${opp.profit} profit</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-sm mt-3 pt-3 border-t border-gray-700">
+                        <div class="space-x-4">
+                            <span class="text-gray-400">Yes: <span class="text-white">${opp.yes_price}</span></span>
+                            <span class="text-gray-400">No: <span class="text-white">${opp.no_price}</span></span>
+                        </div>
+                        <button onclick="executeArbitrage('${opp.id}')" class="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs">
+                            Execute
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Fetch and render trades
+        async function fetchTrades() {
+            try {
+                const endpoint = isLocal ? '/dashboard/trades?limit=10' : '/dashboard/trades?limit=10';
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+
+                if (data.success && data.trades.length > 0) {
+                    renderTrades(data.trades);
+                }
+            } catch (error) {
+                console.error('Error fetching trades:', error);
+            }
+        }
+
+        // Render trades
+        function renderTrades(trades) {
+            const container = document.getElementById('trades-container');
+
+            container.innerHTML = trades.map(trade => {
+                const statusColor = trade.status === 'completed' ? 'text-green-400' : 'text-yellow-400';
+                const statusIcon = trade.status === 'completed' ? '✅' : '⏳';
+
+                return `
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <h4 class="text-white font-medium">${trade.outcome}</h4>
+                                <p class="text-sm text-gray-400">${formatTimestamp(trade.timestamp)}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="${statusColor} text-sm">${statusIcon} ${trade.status}</div>
+                                <div class="text-green-400 font-bold">${formatCurrency(trade.profit)}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
+                            <div>
+                                <span>${trade.buy_platform}</span>
+                                <span class="text-white mx-1">@${trade.buy_price}</span>
+                                <span class="mx-2">→</span>
+                                <span>${trade.sell_platform}</span>
+                                <span class="text-white mx-1">@${trade.sell_price}</span>
+                            </div>
+                            <div class="text-purple-400">${(trade.spread * 100).toFixed(1)}% spread</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Fetch and render activity feed
+        async function fetchActivity() {
+            try {
+                const endpoint = isLocal ? '/dashboard/activity?limit=20' : '/dashboard/activity?limit=20';
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+
+                if (data.success && data.activities.length > 0) {
+                    renderActivity(data.activities);
+                }
+            } catch (error) {
+                console.error('Error fetching activity:', error);
+            }
+        }
+
+        // Render activity feed
+        function renderActivity(activities) {
+            const container = document.getElementById('activity-container');
+
+            container.innerHTML = activities.map(activity => `
+                <div class="flex items-start space-x-3 p-2 hover:bg-gray-800 rounded transition">
+                    <div class="text-xl">${activity.icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-gray-300">${activity.message}</p>
+                        <p class="text-xs text-gray-500">${formatTimestamp(activity.timestamp)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Execute arbitrage (demo)
+        function executeArbitrage(id) {
+            // In a real implementation, this would call the /execute endpoint
+            alert(`Executing arbitrage opportunity ${id}...\n\nThis is a demo. In production, this would submit the trade to the execution engine.`);
+        }
+
+        // Manual refresh
+        async function refreshOpportunities() {
+            const button = event.target;
+            button.textContent = '⏳ Scanning...';
+            button.disabled = true;
+
+            await fetchOpportunities();
+
+            button.textContent = '🔄 Refresh';
+            button.disabled = false;
+        }
+
+        // Initialize dashboard
+        async function initDashboard() {
+            console.log('Initializing dashboard...');
+
+            // Initial data fetch
+            await Promise.all([
+                fetchStats(),
+                fetchOpportunities(),
+                fetchTrades(),
+                fetchActivity()
+            ]);
+
+            // Set up polling
+            setInterval(fetchStats, POLLING_INTERVAL);
+            setInterval(fetchOpportunities, POLLING_INTERVAL * 2); // Less frequent for opportunities
+            setInterval(fetchTrades, POLLING_INTERVAL * 3); // Even less frequent for trades
+            setInterval(fetchActivity, POLLING_INTERVAL);
+
+            console.log('Dashboard initialized');
+        }
+
+        // Start dashboard when page loads
+        window.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
