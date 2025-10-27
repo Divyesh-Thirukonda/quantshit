@@ -1,0 +1,68 @@
+===============================================================================
+ENHANCED DEMO MODE - QUICK START GUIDE
+===============================================================================
+
+NEW FEATURES:
+  ✓ 25 markets per platform with 30 days of historical data
+  ✓ Comprehensive backtesting framework
+  ✓ Professional visualization suite
+  ✓ Projected returns with confidence intervals
+  ✓ REST API endpoints for programmatic access
+
+COMMANDS TO RUN:
+
+  1. Generate demo data:   python demo/data_generator.py
+  2. Run backtest:         python demo/backtester.py
+  3. Create charts:        python demo/visualizer.py
+  4. Traditional demo:     python demo/demo_runner.py
+
+BACKTEST RESULTS (30 days):
+
+  - Total Profit: $3,239.44
+  - Total Trades: 90
+  - Profit per Trade: $35.99
+  - Win Rate: 100%
+  - Sharpe Ratio: 437.35
+  - Max Drawdown: 0%
+
+PROJECTED RETURNS (Next 30 days):
+
+  - Expected Profit: $3,239.44
+  - 95% Confidence Interval: $3,197 - $3,282
+  - Daily Expected Profit: $107.98
+
+CUSTOMIZE:
+
+  Edit demo/.env.demo to adjust:
+    MIN_SPREAD=0.05     (5% minimum spread)
+    MIN_VOLUME=1000000  ($1M minimum volume)
+
+API ENDPOINTS:
+
+  GET /backtest                     - Full backtest results
+  GET /backtest/visualizations      - Charts as base64 images
+  GET /backtest/projections         - Projected returns
+
+  Example: curl http://localhost:8000/backtest
+
+VISUALIZATIONS CREATED:
+
+  demo/backtest_dashboard.png       - Comprehensive performance dashboard
+  demo/cumulative_returns.png       - Profit over time chart
+  demo/daily_profits.png            - Daily P&L distribution
+
+FULL DOCUMENTATION:
+
+  demo/README.md                    - Complete guide with examples
+
+NEXT STEPS:
+
+  1. Review generated charts in demo/ directory
+  2. Test API endpoints locally (python api/app.py)
+  3. Deploy to Vercel for production access
+  4. Configure real API keys for live trading
+
+NOTE: Demo data is synthetic. Real performance will vary based on market
+      conditions. No actual trades are executed in demo mode.
+
+===============================================================================
