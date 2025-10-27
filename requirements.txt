@@ -3,3 +3,7 @@ fastapi==0.104.1
 uvicorn==0.24.0
 python-dotenv==1.0.0
 pydantic==2.4.2
+matplotlib>=3.9.0
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.14.0

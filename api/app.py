@@ -59,7 +59,10 @@ async def root():
             "health": "/health",
             "scan": "/scan",
             "markets": "/markets",
-            "system_status": "/status"
+            "system_status": "/status",
+            "backtest": "/backtest",
+            "backtest_viz": "/backtest/visualizations",
+            "projections": "/backtest/projections"
         }
     }
 
@@ -178,6 +181,169 @@ async def get_markets():
 async def api_health():
     """Vercel-specific health check"""
     return await health_check()
+
+@app.get("/backtest")
+async def run_backtest(
+    min_spread: Optional[float] = 0.05,
+    min_volume: Optional[float] = 1000000,
+    max_trades_per_day: Optional[int] = 3,
+    trade_amount: Optional[float] = 1000
+):
+    """Run backtest on historical demo data"""
+    try:
+        # Import backtesting modules
+        import sys
+        from pathlib import Path
+
+        # Add demo directory to path
+        demo_path = Path(__file__).parent.parent / "demo"
+        sys.path.insert(0, str(demo_path))
+
+        from backtester import Backtester
+
+        # Run backtest
+        backtester = Backtester(
+            min_spread=min_spread,
+            min_volume=min_volume,
+            max_trades_per_day=max_trades_per_day,
+            trade_amount=trade_amount
+        )
+
+        result = backtester.run_backtest()
+
+        # Get projections
+        projection = backtester.project_returns(result, days_forward=30)
+
+        return {
+            "success": True,
+            "backtest": result.to_dict(),
+            "projections": projection,
+            "parameters": {
+                "min_spread": min_spread,
+                "min_volume": min_volume,
+                "max_trades_per_day": max_trades_per_day,
+                "trade_amount": trade_amount
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Backtest failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/backtest/visualizations")
+async def get_backtest_visualizations(
+    min_spread: Optional[float] = 0.05,
+    min_volume: Optional[float] = 1000000,
+    max_trades_per_day: Optional[int] = 3,
+    trade_amount: Optional[float] = 1000
+):
+    """Get backtest visualizations as base64-encoded images"""
+    try:
+        # Import backtesting and visualization modules
+        import sys
+        from pathlib import Path
+
+        # Add demo directory to path
+        demo_path = Path(__file__).parent.parent / "demo"
+        sys.path.insert(0, str(demo_path))
+
+        from backtester import Backtester
+        from visualizer import BacktestVisualizer
+
+        # Run backtest
+        backtester = Backtester(
+            min_spread=min_spread,
+            min_volume=min_volume,
+            max_trades_per_day=max_trades_per_day,
+            trade_amount=trade_amount
+        )
+
+        result = backtester.run_backtest()
+
+        # Generate visualizations
+        visualizer = BacktestVisualizer(result)
+        plots = visualizer.generate_all_plots()
+
+        return {
+            "success": True,
+            "plots": plots,
+            "summary": result.to_dict()["summary"],
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Visualization generation failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/backtest/projections")
+async def get_projections(
+    days_forward: Optional[int] = 30,
+    min_spread: Optional[float] = 0.05,
+    min_volume: Optional[float] = 1000000,
+    max_trades_per_day: Optional[int] = 3,
+    trade_amount: Optional[float] = 1000
+):
+    """Get projected returns based on historical backtest"""
+    try:
+        # Import backtesting modules
+        import sys
+        from pathlib import Path
+
+        # Add demo directory to path
+        demo_path = Path(__file__).parent.parent / "demo"
+        sys.path.insert(0, str(demo_path))
+
+        from backtester import Backtester
+
+        # Run backtest
+        backtester = Backtester(
+            min_spread=min_spread,
+            min_volume=min_volume,
+            max_trades_per_day=max_trades_per_day,
+            trade_amount=trade_amount
+        )
+
+        result = backtester.run_backtest()
+
+        # Get projections
+        projection = backtester.project_returns(result, days_forward=days_forward)
+
+        return {
+            "success": True,
+            "projections": projection,
+            "historical_performance": result.to_dict()["summary"],
+            "parameters": {
+                "days_forward": days_forward,
+                "min_spread": min_spread,
+                "min_volume": min_volume,
+                "max_trades_per_day": max_trades_per_day,
+                "trade_amount": trade_amount
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Projections failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 # Vercel entry point
 app = app
