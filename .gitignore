@@ -38,3 +38,4 @@ ENV/
 env.bak/
 venv.bak/
 .vercel
+.DS_STORE
