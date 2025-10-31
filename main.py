@@ -13,14 +13,14 @@ from config.settings import config
 
 def test_types():
     """Test that our core types work correctly."""
-    print("🔧 Testing Core Types...")
+    print("Testing Core Types...")
     
     # Test enum
     print(f"Platform: {Platform.KALSHI}")
     print(f"Available platforms: {[p.value for p in Platform]}")
     
     # Test config
-    print(f"\n⚙️ Configuration:")
+    print(f"\nConfiguration:")
     print(f"Environment: {config.environment}")
     print(f"Debug: {config.debug}")
     print(f"Paper trading: {config.trading.paper_trading}")
@@ -30,28 +30,28 @@ def test_types():
     kalshi_config = config.get_platform_config(Platform.KALSHI)
     poly_config = config.get_platform_config(Platform.POLYMARKET)
     
-    print(f"\n🔑 Platform Configurations:")
-    print(f"Kalshi configured: {'✅' if kalshi_config else '❌'}")
-    print(f"Polymarket configured: {'✅' if poly_config else '❌'}")
+    print(f"\nPlatform Configurations:")
+    print(f"Kalshi configured: {'Yes' if kalshi_config else 'No'}")
+    print(f"Polymarket configured: {'Yes' if poly_config else 'No'}")
     
-    print("\n✅ Core types test completed!")
+    print("\nCore types test completed!")
 
 
 def show_project_status():
     """Show current project status."""
-    print("📊 Project Status - Phase 1: Foundation & Types")
+    print("Project Status - Phase 1: Foundation & Types")
     print("=" * 50)
     
     completed = [
-        "✅ Core enums (Platform, Outcome, OrderType, etc.)",
-        "✅ Data types (Market, Quote, ArbitrageOpportunity, etc.)",
-        "✅ Configuration management",
-        "✅ Basic test suite",
-        "✅ Project structure"
+        "Core enums (Platform, Outcome, OrderType, etc.)",
+        "Data types (Market, Quote, ArbitrageOpportunity, etc.)",
+        "Configuration management",
+        "Basic test suite",
+        "Project structure"
     ]
     
     next_phase = [
-        "🔄 Data Acquisition (Phase 2):",
+        "Data Acquisition (Phase 2):",
         "   - Kalshi API integration",
         "   - Polymarket API integration", 
         "   - Market data fetching",
@@ -59,14 +59,14 @@ def show_project_status():
     ]
     
     for item in completed:
-        print(item)
+        print(f"✓ {item}")
     
-    print("\n📋 Next Phase:")
+    print("\nNext Phase:")
     for item in next_phase:
-        print(item)
+        print(f"> {item}")
     
-    print(f"\n💡 To continue: Set up your API keys in .env file")
-    print(f"💡 Then run: pytest tests/ to validate everything works")
+    print(f"\nTo continue: Set up your API keys in .env file")
+    print(f"Then run: pytest tests/ to validate everything works")
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
         else:
             print(f"Unknown command: {command}")
     else:
-        print("🚀 Quantshit - Prediction Market Arbitrage System")
+        print("Quantshit - Prediction Market Arbitrage System")
         print("Available commands:")
         print("  python main.py test    - Test core functionality")
         print("  python main.py status  - Show project status")
