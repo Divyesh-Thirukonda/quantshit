@@ -1,97 +1,96 @@
-"""
-Test configuration and fixtures for the test suite
-"""
-import os
+"""Test configuration and fixtures."""
+
 import sys
+from pathlib import Path
+
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
-from unittest.mock import MagicMock, patch
+from decimal import Decimal
+from datetime import datetime, timedelta
+from uuid import uuid4
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from src.core import (
+    Platform, Outcome, OrderType, OrderStatus, RiskLevel,
+    Market, Quote, ArbitrageOpportunity, Position, Order, MarketStatus
+)
 
-# Test configuration
-TEST_API_KEYS = {
-    'polymarket': 'test_poly_key',
-    'kalshi': 'test_kalshi_key'
-}
-
-TEST_MARKET_DATA = {
-    'polymarket': [
-        {
-            'id': 'poly_market_1',
-            'title': 'Test Market 1',
-            'yes_price': 0.45,
-            'no_price': 0.55,
-            'volume': 5000,
-            'liquidity': 2500,
-            'platform': 'polymarket'
-        },
-        {
-            'id': 'poly_market_2',
-            'title': 'Test Market 2',
-            'yes_price': 0.30,
-            'no_price': 0.70,
-            'volume': 3000,
-            'liquidity': 1500,
-            'platform': 'polymarket'
-        }
-    ],
-    'kalshi': [
-        {
-            'id': 'kalshi_market_1',
-            'title': 'Test Market 1',
-            'yes_price': 0.40,
-            'no_price': 0.60,
-            'volume': 4000,
-            'liquidity': 2000,
-            'platform': 'kalshi'
-        },
-        {
-            'id': 'kalshi_market_2',
-            'title': 'Test Market 2',
-            'yes_price': 0.25,
-            'no_price': 0.75,
-            'volume': 2500,
-            'liquidity': 1250,
-            'platform': 'kalshi'
-        }
-    ]
-}
 
 @pytest.fixture
-def mock_api_keys():
-    """Provide test API keys"""
-    return TEST_API_KEYS.copy()
+def sample_market_kalshi():
+    """Sample Kalshi market for testing."""
+    return Market(
+        id="KALSHI_MARKET_001",
+        platform=Platform.KALSHI,
+        title="Will Bitcoin hit $100k by end of 2024?",
+        description="Bitcoin price prediction market",
+        status=MarketStatus.ACTIVE,
+        close_time=datetime.utcnow() + timedelta(days=60),
+        yes_price=Decimal('0.65'),
+        no_price=Decimal('0.35'),
+        volume_24h=Decimal('50000'),
+        liquidity=Decimal('100000')
+    )
+
 
 @pytest.fixture
-def mock_market_data():
-    """Provide test market data"""
-    return TEST_MARKET_DATA.copy()
+def sample_market_polymarket():
+    """Sample Polymarket market for testing."""
+    return Market(
+        id="POLY_MARKET_001", 
+        platform=Platform.POLYMARKET,
+        title="Bitcoin $100k by 2024 end",
+        description="Will BTC reach $100,000 by December 31, 2024?",
+        status=MarketStatus.ACTIVE,
+        close_time=datetime.utcnow() + timedelta(days=60),
+        yes_price=Decimal('0.70'),
+        no_price=Decimal('0.30'),
+        volume_24h=Decimal('75000'),
+        liquidity=Decimal('150000')
+    )
+
 
 @pytest.fixture
-def mock_platform_api():
-    """Mock platform API for testing"""
-    mock_api = MagicMock()
-    mock_api.get_recent_markets.return_value = TEST_MARKET_DATA['polymarket']
-    mock_api.place_buy_order.return_value = {'success': True, 'order_id': 'test_buy_123'}
-    mock_api.place_sell_order.return_value = {'success': True, 'order_id': 'test_sell_456'}
-    mock_api.find_event.return_value = TEST_MARKET_DATA['polymarket'][:1]
-    return mock_api
+def sample_quote_kalshi():
+    """Sample Kalshi quote for testing."""
+    return Quote(
+        market_id="KALSHI_MARKET_001",
+        platform=Platform.KALSHI,
+        outcome=Outcome.YES,
+        bid_price=Decimal('0.64'),
+        ask_price=Decimal('0.66'),
+        bid_size=Decimal('1000'),
+        ask_size=Decimal('1500')
+    )
+
 
 @pytest.fixture
-def patch_get_market_api(mock_platform_api):
-    """Patch the get_market_api function to return mock API"""
-    with patch('src.platforms.get_market_api', return_value=mock_platform_api):
-        yield mock_platform_api
+def sample_quote_polymarket():
+    """Sample Polymarket quote for testing."""
+    return Quote(
+        market_id="POLY_MARKET_001",
+        platform=Platform.POLYMARKET,
+        outcome=Outcome.YES,
+        bid_price=Decimal('0.69'),
+        ask_price=Decimal('0.71'),
+        bid_size=Decimal('2000'),
+        ask_size=Decimal('1800')
+    )
+
 
 @pytest.fixture
-def patch_env_vars():
-    """Patch environment variables for testing"""
-    env_vars = {
-        'MIN_VOLUME': '1000',
-        'MIN_SPREAD': '0.05',
-        'POLYMARKET_API_KEY': 'test_poly_key',
-        'KALSHI_API_KEY': 'test_kalshi_key'
-    }
-    with patch.dict(os.environ, env_vars):
-        yield env_vars
+def sample_arbitrage_opportunity(sample_market_kalshi, sample_market_polymarket, 
+                                 sample_quote_kalshi, sample_quote_polymarket):
+    """Sample arbitrage opportunity for testing."""
+    return ArbitrageOpportunity(
+        market_a=sample_market_kalshi,
+        market_b=sample_market_polymarket,
+        quote_a=sample_quote_kalshi,
+        quote_b=sample_quote_polymarket,
+        expected_profit=Decimal('100'),
+        profit_percentage=Decimal('0.05'),
+        confidence_score=Decimal('0.85'),
+        risk_level=RiskLevel.MEDIUM
+    )

@@ -1,0 +1,5 @@
+"""Main package initialization."""
+
+__version__ = "0.1.0"
+__author__ = "Quantshit Team"
+__description__ = "Prediction Market Arbitrage System"
