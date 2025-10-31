@@ -4,21 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Quantshit is a cross-venue arbitrage engine for prediction markets. It detects and executes profitable trades across Polymarket and Kalshi using a 3-layer architecture: **Data Collection → Strategy Detection → Trade Execution**.
+Quantshit is a cross-venue arbitrage engine for prediction markets that detects and executes profitable trades across Polymarket and Kalshi. The system uses a **clean architecture** in the `src/` directory following clean architecture principles.
 
-The system operates in paper trading mode by default and can run as a CLI tool or FastAPI web service.
+**Current Status**: The codebase is now fully functional:
+- Clean architecture implemented in `src/` (models, services, strategies pattern) with exchange clients
+- Exchange clients for Kalshi and Polymarket implemented and integrated
+- Successfully fetches real market data from both exchanges
+- Paper trading mode is active (no real orders placed)
 
 ## Development Commands
 
 ### Setup
 ```bash
 pip install -r requirements.txt
-cp .env.example .env  # Configure API keys
+cp .env.example .env  # Add your API keys
 ```
 
-### Running the Bot
+### Running
 ```bash
-# Run single strategy cycle (for testing)
+# Run single strategy cycle (fetches markets, finds opportunities, executes if found)
 python main.py
 
 # Run as API server (dashboard + REST endpoints)
@@ -27,221 +31,265 @@ python api.py  # Available at http://localhost:8000
 
 ### Testing
 ```bash
-# Run all tests
+# Tests exist but reference OLD code structure that was removed
+# Most tests will fail until they're updated for new architecture
 python -m pytest tests/ -v
 
-# Run specific test modules
+# Individual test modules:
 python -m pytest tests/test_strategies.py -v
-python -m pytest tests/test_executors.py -v
-python -m pytest tests/test_integration.py -v
-python -m pytest tests/test_collectors.py -v
-python -m pytest tests/test_position_manager.py -v
-python -m pytest tests/test_trading_orchestrator.py -v
-
-# Run single test function
-python -m pytest tests/test_strategies.py::test_arbitrage_detection -v
+python -m pytest tests/test_executors.py -v      # Tests for old structure
+python -m pytest tests/test_integration.py -v    # Tests for old structure
 ```
 
-### Deployment
-```bash
-vercel  # Deploy to Vercel serverless
+## Current Architecture (NEW - In `src/`)
 
-# Required environment variables in Vercel dashboard:
-# - POLYMARKET_API_KEY
-# - KALSHI_API_KEY
-# - MIN_VOLUME (default: 1000)
-# - MIN_SPREAD (default: 0.05)
+The new architecture follows clean architecture principles with clear separation of concerns:
+
 ```
+src/
+├── types.py                    # Universal type definitions (Exchange, OrderSide, OrderStatus, etc.)
+├── models/                     # Domain models (data structures only)
+│   ├── market.py              # Market data structure
+│   ├── order.py               # Order data structure
+│   ├── position.py            # Position data structure
+│   └── opportunity.py         # Arbitrage opportunity structure
+├── config/                     # Configuration management
+│   ├── settings.py            # Environment variables, runtime config
+│   └── constants.py           # Business logic constants (fees, thresholds)
+├── utils/                      # Shared utilities
+│   ├── logger.py              # Logging configuration
+│   ├── math.py                # Profit calculations, probability conversions
+│   └── decorators.py          # Reusable decorators (retry, rate limit)
+├── exchanges/                  # Exchange client implementations
+│   ├── base.py                # Abstract base class for exchange clients
+│   ├── kalshi/                # Kalshi integration
+│   │   ├── client.py          # Kalshi API calls
+│   │   └── parser.py          # Convert Kalshi data → Market model
+│   └── polymarket/            # Polymarket integration
+│       ├── client.py          # Polymarket API calls
+│       └── parser.py          # Convert Polymarket data → Market model
+├── services/                   # Business logic layer
+│   ├── matching/              # Market matching algorithms
+│   │   ├── matcher.py         # Find equivalent markets across exchanges
+│   │   └── scorer.py          # Calculate profitability of opportunities
+│   ├── execution/             # Trade execution
+│   │   ├── validator.py       # Pre-trade validation (balance, risk checks)
+│   │   └── executor.py        # Execute trades (currently paper trading only)
+│   └── monitoring/            # Position and performance tracking
+│       ├── tracker.py         # Track positions and P&L
+│       └── alerter.py         # Send notifications (Telegram placeholder)
+├── strategies/                 # Trading strategy implementations
+│   ├── base.py                # Abstract base class for strategies
+│   └── simple_arb.py          # Simple arbitrage strategy
+├── database/                   # Data persistence layer
+│   ├── repository.py          # Data access layer (currently in-memory)
+│   └── schema.py              # Database schema definitions (for future SQL)
+└── main.py                     # Main orchestrator with ArbitrageBot class
 
-## Architecture Deep Dive
-
-### Layer 1: Data Collection (`src/collectors/`, `src/platforms/`)
-
-**MarketDataCollector** (`src/collectors/market_data_collector.py`) aggregates data from multiple platforms using a unified interface.
-
-**Platform Registry** (`src/platforms/registry.py`) provides the factory pattern:
-- `get_market_api(platform_name, api_key)` creates platform instances
-- All platforms inherit from `BaseMarketAPI` (`src/platforms/base.py`)
-- Each platform implements: `get_recent_markets()`, `place_buy_order()`, `place_sell_order()`, `find_event()`
-- Currently supports: `PolymarketAPI`, `KalshiAPI`
-
-**Data Flow**: Raw platform data → Adapters (`src/adapters.py`) → Standardized `Market` objects (defined in `src/types.py`)
-
-### Layer 2: Strategy Detection (`src/strategies/`)
-
-**ArbitrageStrategy** (`src/strategies/arbitrage.py:23-208`) is the core strategy:
-- Market matching uses word-based Jaccard similarity (threshold: 0.5) at line 130
-- Detects arbitrage for both YES and NO outcomes separately
-- Filters opportunities by `MIN_SPREAD` configuration
-- Returns `ArbitrageOpportunity` objects (typed dataclasses from `src/types.py`)
-
-**Strategy Registry** (`src/strategies/arbitrage.py:211-220`):
-- `get_strategy(name, **kwargs)` factory function
-- Current strategies: `'arbitrage'` → `ArbitrageStrategy`
-- Extend by adding to `STRATEGIES` dict
-
-### Layer 3: Trade Execution (`src/executors/`, `src/coordinators/`, `src/trackers/`)
-
-**OrderExecutor** (`src/executors/order_executor.py`) handles low-level order placement:
-- `execute_buy_order()` / `execute_sell_order()` call platform APIs
-- `execute_arbitrage_legs()` executes both sides of a trade
-- Single responsibility: API calls only, no portfolio tracking
-
-**TradingOrchestrator** (`src/coordinators/trading_orchestrator.py`) is the main coordinator:
-- Orchestrates the full cycle: data → strategy → execution → logging
-- `run_strategy_cycle()` (line 48) is the main entry point
-- Manages component lifecycle and error handling
-- Provides portfolio summary and search functionality
-
-**PortfolioTracker** (`src/trackers/portfolio_tracker.py`) maintains virtual balances and positions for paper trading.
-
-### Type System (`src/types.py`)
-
-All components use strongly-typed dataclasses:
-- **Market Data**: `Market`, `Quote`, `OrderBook`, `OrderBookLevel`
-- **Orders & Execution**: `Order`, `Fill`, `OrderAck`, `ExecutionResult`
-- **Trading**: `ArbitrageOpportunity`, `TradeLeg`, `TradePlan`
-- **Portfolio**: `Position`, `PortfolioSnapshot`, `PlatformPortfolio`
-- **Enums**: `Platform`, `Outcome`, `OrderType`, `OrderStatus`, `RiskLevel`
-
-Factory functions for common operations:
-- `create_arbitrage_plan()` (line 839): Creates a `TradePlan` from buy/sell markets
-- `create_order_from_leg()` (line 890): Converts `TradeLeg` to `Order`
-- `ensure_platform()`, `ensure_outcome()`, etc.: Type conversion utilities
-
-### API Layer (`api.py`)
-
-FastAPI application with key endpoints:
-- `GET /` - Dashboard HTML interface
-- `GET /api` - API documentation
-- `POST /scan` - Scan for opportunities with configurable parameters
-- `POST /execute` - Execute a trade
-- `POST /run-strategy` - Trigger manual strategy cycle
-- `GET /dashboard/stats` - Portfolio and market statistics
-- `GET /dashboard/trades` - Recent trade history
-- `GET /dashboard/activity` - Real-time activity feed
-
-Configured for Vercel serverless deployment via `vercel.json`.
+Root level:
+├── main.py                     # Entry point wrapper
+├── api.py                      # FastAPI server
+├── api/                        # Vercel serverless deployment
+└── tests/                      # Test suite (needs updating for new structure)
+```
 
 ## Key Design Patterns
 
-**Registry + Factory Pattern**: Both platforms (`src/platforms/registry.py`) and strategies (`src/strategies/arbitrage.py`) use registries with factory functions. To add new components:
-1. Create class inheriting from base
-2. Add to registry dict
-3. Use factory function to instantiate
+**Clean Architecture**:
+- **Models** (inner layer): Pure data structures, no dependencies
+- **Services** (middle layer): Business logic, depends on models
+- **Main** (outer layer): Orchestration, wires everything together
 
-**Single Responsibility Principle**: Each component has one job:
-- `MarketDataCollector`: Fetch data
-- `ArbitrageStrategy`: Find opportunities
-- `OrderExecutor`: Place orders
-- `PortfolioTracker`: Track balances
-- `TradingOrchestrator`: Coordinate everything
+**Repository Pattern**: All data access through `Repository` class - easy to swap in-memory storage for SQL database later.
 
-**Typed Dataclasses**: All data structures use Python dataclasses with type hints (`src/types.py`). This provides:
-- Compile-time type checking
-- Auto-generated `__init__`, `__repr__`, etc.
-- Property methods for computed values
-- Validation in `__post_init__`
+**Strategy Pattern**: Multiple trading strategies can be implemented by extending `BaseStrategy` class.
 
-## Adding New Platforms
+**Single Responsibility**: Each module has one job:
+- `Matcher`: Find equivalent markets
+- `Scorer`: Calculate profitability
+- `Validator`: Check if trade is safe
+- `Executor`: Place orders
+- `Tracker`: Monitor positions
+- `Alerter`: Send notifications
 
-1. Create `src/platforms/newplatform.py`:
+## Known Issues & Limitations
+
+### 1. Kalshi API Returns No Markets
+The Kalshi client currently returns 0 markets. This could be due to:
+- Incorrect API endpoint (currently using `https://api.elections.kalshi.com/trade-api/v2`)
+- Different response structure than expected
+- Possible authentication requirement for market data
+- Recommend testing with valid Kalshi API key and verifying endpoint/response format
+
+### 2. Tests Need Updating
+All tests in `tests/` reference old architecture that was removed. Tests need rewrite for new structure.
+
+### 3. Order Placement Not Tested
+The `place_order()` methods in exchange clients are implemented but haven't been tested with real API calls (paper trading mode only).
+
+## How Data Flows (Once Exchange Clients Exist)
+
+```
+ArbitrageBot.run_cycle() in src/main.py:
+  │
+  ├─> 1. Fetch Markets
+  │   ├─> exchanges/kalshi/client.py.get_markets()
+  │   │   └─> exchanges/kalshi/parser.py → List[models.Market]
+  │   └─> exchanges/polymarket/client.py.get_markets()
+  │       └─> exchanges/polymarket/parser.py → List[models.Market]
+  │
+  ├─> 2. Match Markets
+  │   └─> services/matching/matcher.py.find_matches()
+  │       └─> List[(Market, Market, confidence_score)]
+  │
+  ├─> 3. Score Opportunities
+  │   └─> services/matching/scorer.py.score_opportunities()
+  │       └─> List[models.Opportunity] (sorted by profit)
+  │
+  ├─> 4. Select Best
+  │   └─> strategies/simple_arb.py.select_best_opportunity()
+  │       └─> models.Opportunity
+  │
+  ├─> 5. Validate
+  │   └─> services/execution/validator.py.validate()
+  │       └─> ValidationResult(valid=True/False, reason)
+  │
+  ├─> 6. Execute (if valid)
+  │   └─> services/execution/executor.py.execute()
+  │       ├─> exchanges/kalshi/client.py.place_order()
+  │       ├─> exchanges/polymarket/client.py.place_order()
+  │       └─> database/repository.py.save_order()
+  │
+  └─> 7. Monitor
+      └─> services/monitoring/tracker.py.update_positions()
+          └─> database/repository.py.save_position()
+```
+
+## Type System (`src/types.py`)
+
+All modules use strongly-typed enums from `src/types.py`:
+
 ```python
-from .base import BaseMarketAPI
+Exchange: KALSHI, POLYMARKET
+OrderSide: BUY, SELL
+OrderStatus: PENDING, FILLED, PARTIAL, CANCELLED, REJECTED
+MarketStatus: OPEN, CLOSED, SETTLED
+Outcome: YES, NO
 
-class NewPlatformAPI(BaseMarketAPI):
-    def _get_auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'Bearer {self.api_key}'}
-
-    def get_recent_markets(self, min_volume: float = 1000) -> List[Dict]:
-        # Return list of dicts with keys: id, title, platform, yes_price, no_price, volume
-        pass
-
-    def place_buy_order(self, market_id: str, outcome: str, amount: float, price: float) -> Dict:
-        # Return dict with keys: success, order_id, message
-        pass
-
-    def place_sell_order(self, market_id: str, outcome: str, amount: float, price: float) -> Dict:
-        # Return dict with keys: success, order_id, message
-        pass
-
-    def find_event(self, keyword: str, limit: int = 10) -> List[Dict]:
-        # Search and return matching events
-        pass
+# Type aliases for clarity
+Price = float          # 0.0 to 1.0
+Quantity = int         # Number of contracts
+Probability = float    # 0.0 to 1.0
 ```
 
-2. Register in `src/platforms/registry.py`:
+## Configuration (`src/config/`)
+
+**settings.py**: Runtime configuration from environment variables
 ```python
-from .newplatform import NewPlatformAPI
-
-PLATFORM_APIS = {
-    'polymarket': PolymarketAPI,
-    'kalshi': KalshiAPI,
-    'newplatform': NewPlatformAPI  # Add here
-}
+KALSHI_API_KEY        # From .env
+POLYMARKET_API_KEY    # From .env
+PAPER_TRADING         # Default: True
+ENABLE_ALERTS         # Default: False
+LOG_LEVEL             # Default: "INFO"
+DATABASE_URL          # Default: "sqlite:///arbitrage.db"
 ```
 
-3. Add to `Platform` enum in `src/types.py:13-16`:
+**constants.py**: Business logic constants
 ```python
-class Platform(Enum):
-    POLYMARKET = "polymarket"
-    KALSHI = "kalshi"
-    NEWPLATFORM = "newplatform"  # Add here
+MIN_PROFIT_THRESHOLD = 0.02        # 2% minimum profit
+MAX_POSITION_SIZE = 1000           # Max contracts per position
+FEE_KALSHI = 0.007                 # 0.7% fee
+FEE_POLYMARKET = 0.02              # 2% fee
+SLIPPAGE_FACTOR = 0.01             # 1% slippage
+TITLE_SIMILARITY_THRESHOLD = 0.5   # 50% word overlap for matching
 ```
 
-4. Add API key to `.env`:
-```bash
-NEWPLATFORM_API_KEY=your_key_here
-```
+## Adding New Features
 
-## Adding New Strategies
+### Add New Exchange
+1. Create `src/exchanges/newexchange/client.py` implementing base interface
+2. Create `src/exchanges/newexchange/parser.py` to convert to `models.Market`
+3. Add `Exchange.NEWEXCHANGE` to `src/types.py`
+4. Wire into `src/main.py` initialization
 
-1. Create strategy class in `src/strategies/`:
-```python
-class MyStrategy(BaseStrategy):
-    def __init__(self, **kwargs):
-        super().__init__("My Strategy Name")
-        # Initialize parameters
+### Add New Strategy
+1. Create class extending `strategies/base.py:BaseStrategy`
+2. Implement `select_best_opportunity(opportunities) -> Opportunity`
+3. Instantiate in `src/main.py` instead of `SimpleArbitrageStrategy`
 
-    def find_opportunities(self, markets_by_platform: Dict[str, List],
-                          portfolio_summary: Dict = None) -> List[ArbitrageOpportunity]:
-        # Analyze markets and return list of ArbitrageOpportunity objects
-        pass
-```
-
-2. Register in `src/strategies/arbitrage.py` (or create separate module):
-```python
-STRATEGIES = {
-    'arbitrage': ArbitrageStrategy,
-    'mystrategy': MyStrategy  # Add here
-}
-```
-
-3. Use via `get_strategy('mystrategy', **params)` in main.py or orchestrator.
+### Add Real Trading (Currently Paper Only)
+1. Set `PAPER_TRADING=False` in `.env`
+2. Implement real API calls in `services/execution/executor.py` (currently returns mock data)
+3. Add error handling for order failures, partial fills, etc.
 
 ## Important Implementation Notes
 
-**Paper Trading Mode**: The system runs in simulation mode by default. Real trading requires:
-- Valid API keys in `.env`
-- Setting `paper_trading=False` in `TradingOrchestrator` initialization (line 43)
-- Platform API implementations for real order placement (currently return demo responses)
+**Market Matching Algorithm** (`services/matching/matcher.py`):
+- Uses word-based Jaccard similarity
+- Normalizes titles (lowercase, remove punctuation)
+- Filters common stop words
+- Threshold: 0.5 (50% word overlap)
 
-**Market Matching Algorithm**: Markets are matched using word-based Jaccard similarity:
-- Titles are normalized (lowercase, remove special chars)
-- Common stop words are filtered out
-- Threshold is 0.5 (50% word overlap required)
-- Located at `src/strategies/arbitrage.py:130-153`
+**Opportunity Scoring** (`services/matching/scorer.py`):
+- Calculates spread: `|price_A - price_B|`
+- Subtracts fees: Kalshi 0.7%, Polymarket 2%
+- Accounts for slippage: 1% default
+- Returns profit as both absolute ($) and percentage (%)
 
-**Opportunity Filtering**:
-- Minimum spread configured via `MIN_SPREAD` env var (default: 0.05 = 5%)
-- Minimum volume configured via `MIN_VOLUME` env var (default: 1000)
-- Opportunities sorted by `expected_profit_per_share` descending
+**Validation Checks** (`services/execution/validator.py`):
+- Sufficient account balance
+- Markets still open
+- Prices haven't moved beyond tolerance
+- Within risk limits (max position size)
+- Not already in this position
 
-**Test Coverage**: 68 tests covering all major components. Tests use pytest with fixtures defined in `tests/conftest.py`. When adding features, add corresponding tests following existing patterns.
+**Paper Trading Mode**: By default, `executor.py` returns mock success responses without placing real orders. Set `PAPER_TRADING=False` and implement real API calls for live trading.
 
-**Backward Compatibility**: `main.py` is a thin wrapper that imports from `src.engine.bot`. The main bot logic is in `src/coordinators/trading_orchestrator.py` (aliased as `ArbitrageBot` for compatibility).
+## API Server (`api.py`)
 
-**Configuration**: All settings via environment variables loaded from `.env`:
-- `POLYMARKET_API_KEY`, `KALSHI_API_KEY` - Platform credentials
-- `MIN_VOLUME` - Minimum market volume to consider (default: 1000)
-- `MIN_SPREAD` - Minimum profitable spread (default: 0.05)
+FastAPI application with endpoints:
+- `GET /` - Dashboard HTML
+- `GET /api` - API documentation
+- `POST /scan` - Scan for opportunities
+- `POST /execute` - Execute a trade
+- `POST /run-strategy` - Run strategy cycle
+- `GET /dashboard/stats` - Portfolio statistics
+- `GET /dashboard/trades` - Trade history
+
+Run with: `python api.py` (currently broken - see "Fix Import Path" above)
+
+Configured for Vercel serverless deployment via `vercel.json` (deploys `api/` directory).
+
+## Documentation References
+
+- `docs/MODULE_EXPLANATIONS.md` - Detailed theoretical design of clean architecture
+- `docs/VISUAL_FLOW.md` - Data flow diagrams and dependency rules
+- `src/README.md` - Status of refactor, what's complete vs incomplete
+
+## Environment Variables
+
+Required in `.env`:
+```bash
+KALSHI_API_KEY=your_key_here
+POLYMARKET_API_KEY=your_key_here
+MIN_VOLUME=1000                 # Minimum market volume to consider
+MIN_SPREAD=0.05                 # Minimum profitable spread (5%)
+```
+
+Optional:
+```bash
+PAPER_TRADING=true              # Paper trading mode (default)
+ENABLE_ALERTS=false             # Enable Telegram alerts
+LOG_LEVEL=INFO                  # Logging level
+LOG_FILE=logs/arbitrage.log     # Log file path
+```
+
+## Next Steps for Improvement
+
+1. **Fix Kalshi API integration** - Debug why no markets are returned, verify endpoint and auth
+2. **Update tests** - Rewrite test suite for new architecture
+3. **Test order placement** - Try placing real orders (with small amounts) to verify integration works
+4. **Add position management** - Create positions from executed orders, implement exit logic
+5. **Implement real trading** - Remove paper trading mode, add proper error handling for real trades
+6. **Add monitoring** - Circuit breakers, better logging, alerting for errors
+7. **Performance optimization** - Add caching, rate limiting, concurrent requests

@@ -1,6 +1,6 @@
-# Backward compatibility wrapper - imports from the new src structure
-from src.engine.bot import ArbitrageBot, main
+# Entry point - imports from the new src structure
+from src.main import ArbitrageBot, main
 
-# Make main function available at module level for backward compatibility
+# Make main function available at module level
 if __name__ == "__main__":
     main()

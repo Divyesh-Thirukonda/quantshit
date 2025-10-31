@@ -25,8 +25,8 @@ from .services.monitoring import Tracker, Alerter
 # Strategy
 from .strategies import SimpleArbitrageStrategy
 
-# TODO: Import exchange clients (need to adapt from src/platforms/)
-# from .exchanges import KalshiClient, PolymarketClient
+# Exchange clients
+from .exchanges import KalshiClient, PolymarketClient
 
 logger = get_logger(__name__)
 
@@ -54,10 +54,12 @@ class ArbitrageBot:
         init_database(settings.DATABASE_URL)
         self.repository = Repository()
 
-        # TODO: Initialize exchange clients
-        # These need to be adapted from src/platforms/
-        # self.kalshi_client = KalshiClient(settings.KALSHI_API_KEY)
-        # self.polymarket_client = PolymarketClient(settings.POLYMARKET_API_KEY)
+        # Initialize exchange clients
+        logger.info("Initializing exchange clients...")
+        self.kalshi_client = KalshiClient(settings.KALSHI_API_KEY)
+        self.polymarket_client = PolymarketClient(settings.POLYMARKET_API_KEY)
+        logger.info("  Kalshi client initialized")
+        logger.info("  Polymarket client initialized")
 
         # Initialize services
         self.matcher = Matcher(
@@ -113,7 +115,7 @@ class ArbitrageBot:
 
         try:
             # Step 1: Fetch markets
-            logger.info("=Ê Step 1: Fetching markets from exchanges...")
+            logger.info("=ï¿½ Step 1: Fetching markets from exchanges...")
             kalshi_markets, polymarket_markets = self._fetch_markets()
             logger.info(f"  Kalshi: {len(kalshi_markets)} markets")
             logger.info(f"  Polymarket: {len(polymarket_markets)} markets")
@@ -128,7 +130,7 @@ class ArbitrageBot:
                 return
 
             # Step 3: Score opportunities
-            logger.info("\n=° Step 3: Scoring arbitrage opportunities...")
+            logger.info("\n=ï¿½ Step 3: Scoring arbitrage opportunities...")
             opportunities = self.scorer.score_opportunities(matched_pairs)
             logger.info(f"  Found {len(opportunities)} profitable opportunities")
 
@@ -141,7 +143,7 @@ class ArbitrageBot:
                 return
 
             # Step 4: Select best opportunity using strategy
-            logger.info("\n<¯ Step 4: Selecting best opportunity...")
+            logger.info("\n<ï¿½ Step 4: Selecting best opportunity...")
             best_opportunity = self.strategy.select_best_opportunity(opportunities)
 
             if not best_opportunity:
@@ -163,7 +165,7 @@ class ArbitrageBot:
             logger.info(f"   Validation passed: {validation.reason}")
 
             # Step 6: Execute
-            logger.info("\n¡ Step 6: Executing trade...")
+            logger.info("\nï¿½ Step 6: Executing trade...")
             execution = self.executor.execute(best_opportunity)
 
             if execution.success:
@@ -199,7 +201,7 @@ class ArbitrageBot:
                 )
 
             # Step 7: Monitor positions
-            logger.info("\n=È Step 7: Monitoring positions...")
+            logger.info("\n=ï¿½ Step 7: Monitoring positions...")
             self._monitor_positions()
 
             logger.info(f"\nCycle #{self.cycle_count} completed")
@@ -211,21 +213,16 @@ class ArbitrageBot:
 
     def _fetch_markets(self) -> tuple[List[Market], List[Market]]:
         """
-        Fetch markets from both exchanges.
+        Fetch markets from both exchanges using the exchange clients.
 
-        TODO: Implement actual API calls using exchange clients.
-        For now, returns empty lists as placeholder.
+        Returns:
+            Tuple of (kalshi_markets, polymarket_markets)
         """
-        # TODO: Implement real market fetching
-        # kalshi_markets = self.kalshi_client.get_markets(min_volume=settings.MIN_VOLUME)
-        # polymarket_markets = self.polymarket_client.get_markets(min_volume=settings.MIN_VOLUME)
+        # Fetch from Kalshi
+        kalshi_markets = self.kalshi_client.get_markets(min_volume=settings.MIN_VOLUME)
 
-        # Placeholder - return empty lists
-        logger.warning("Market fetching not implemented - using empty lists")
-        logger.warning("TODO: Adapt exchange clients from src/platforms/")
-
-        kalshi_markets = []
-        polymarket_markets = []
+        # Fetch from Polymarket
+        polymarket_markets = self.polymarket_client.get_markets(min_volume=settings.MIN_VOLUME)
 
         return kalshi_markets, polymarket_markets
 

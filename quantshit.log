@@ -1,0 +1,52 @@
+2025-10-30 19:53:00,691 - src.main - INFO - main - ============================================================
+2025-10-30 19:53:00,692 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
+2025-10-30 19:53:00,692 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-30 19:53:00,692 - src.database.schema - INFO - schema - Database ready
+2025-10-30 19:53:00,692 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-30 19:53:00,692 - src.main - INFO - main - Initializing exchange clients...
+2025-10-30 19:53:00,692 - src.main - INFO - main -   Kalshi client initialized
+2025-10-30 19:53:00,692 - src.main - INFO - main -   Polymarket client initialized
+2025-10-30 19:53:00,692 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-30 19:53:00,692 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-30 19:53:00,692 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-30 19:53:00,692 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-30 19:53:00,692 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-30 19:53:00,692 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-30 19:53:00,692 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-30 19:53:00,692 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60
+2025-10-30 19:53:00,692 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-30 19:53:00,692 - src.main - INFO - main - Paper trading: True
+2025-10-30 19:53:00,692 - src.main - INFO - main - Alerts enabled: False
+2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
+2025-10-30 19:53:00,692 - src.main - INFO - main - Running single cycle mode
+
+2025-10-30 19:53:00,692 - src.main - INFO - main - 
+============================================================
+2025-10-30 19:53:00,692 - src.main - INFO - main - Starting cycle #1 at 2025-10-30 19:53:00.692474
+2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
+
+2025-10-30 19:53:00,692 - src.main - INFO - main - =� Step 1: Fetching markets from exchanges...
+2025-10-30 19:53:00,692 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $1000.0)
+2025-10-30 19:53:00,818 - src.exchanges.kalshi.client - INFO - client - Fetched 0 markets from Kalshi
+2025-10-30 19:53:00,819 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $1000.0)
+2025-10-30 19:53:01,262 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket
+2025-10-30 19:53:01,264 - src.main - INFO - main -   Kalshi: 0 markets
+2025-10-30 19:53:01,264 - src.main - INFO - main -   Polymarket: 100 markets
+2025-10-30 19:53:01,264 - src.main - INFO - main - 
+= Step 2: Finding matching markets...
+2025-10-30 19:53:01,264 - src.services.matching.matcher - INFO - matcher - Matching 0 Kalshi markets with 100 Polymarket markets
+2025-10-30 19:53:01,264 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-30 19:53:01,264 - src.main - INFO - main -   Found 0 matched pairs
+2025-10-30 19:53:01,264 - src.main - INFO - main - No matching markets found - skipping to next cycle
+2025-10-30 19:53:01,264 - src.main - INFO - main - 
+============================================================
+2025-10-30 19:53:01,264 - src.main - INFO - main - Shutting down Quantshit Arbitrage Engine
+2025-10-30 19:53:01,264 - src.main - INFO - main - ============================================================
+2025-10-30 19:53:01,264 - src.main - INFO - main - Total cycles run: 1
+2025-10-30 19:53:01,264 - src.main - INFO - main - Total trades executed: 0
+2025-10-30 19:53:01,264 - src.main - INFO - main - Total opportunities found: 0
+2025-10-30 19:53:01,264 - src.main - INFO - main - Total realized P&L: $+0.00
+2025-10-30 19:53:01,264 - src.main - INFO - main - Total unrealized P&L: $+0.00
+2025-10-30 19:53:01,264 - src.main - INFO - main - 
+Goodbye! =K
