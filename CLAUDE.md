@@ -293,3 +293,239 @@ LOG_FILE=logs/arbitrage.log     # Log file path
 5. **Implement real trading** - Remove paper trading mode, add proper error handling for real trades
 6. **Add monitoring** - Circuit breakers, better logging, alerting for errors
 7. **Performance optimization** - Add caching, rate limiting, concurrent requests
+
+---
+
+## 🔥 DETAILED TODO LIST
+
+### Phase 1: Critical Fixes (Blocking Issues)
+
+#### 1.1 Fix Kalshi API Integration (src/exchanges/kalshi/client.py:22)
+**Status**: Returns 0 markets despite working code structure
+- [ ] Debug actual API response from Kalshi
+- [ ] Verify correct API endpoint (currently using elections-specific endpoint)
+- [ ] Test with valid API key (currently accepts empty string)
+- [ ] Check if authentication is required for market data
+- [ ] May need to use `/markets` instead of `/events`
+- [ ] Update parser to match actual response structure
+
+#### 1.2 Implement Position Creation (src/main.py:182-184)
+**Status**: TODO comment, not implemented
+- [ ] Create `_create_position_from_execution()` method in ArbitrageBot
+- [ ] Build Position object from ExecutionResult (buy + sell orders)
+- [ ] Link both legs to same arbitrage position
+- [ ] Save position to repository
+- [ ] Add position to tracker
+- [ ] Test position creation flow
+
+#### 1.3 Implement Position Closing (src/main.py:242-245)
+**Status**: TODO comment, execution not implemented
+- [ ] Implement `_close_position()` method in ArbitrageBot
+- [ ] Place closing orders on both exchanges
+- [ ] Handle partial closes gracefully
+- [ ] Calculate realized P&L
+- [ ] Update tracker with realized gains/losses
+- [ ] Remove closed positions from repository
+
+---
+
+### Phase 2: Real Trading (High Priority)
+
+#### 2.1 Real Order Placement (src/services/execution/executor.py:136-138)
+**Status**: Raises NotImplementedError for live trading
+- [ ] Implement real API calls in `_place_buy_order()`
+- [ ] Implement real API calls in `_place_sell_order()`
+- [ ] Call exchange client `place_order()` methods
+- [ ] Parse order response and update Order object
+- [ ] Handle order confirmations
+- [ ] Implement order status polling
+- [ ] Handle partial fills
+- [ ] Handle rejections and timeouts
+- [ ] Implement cancellation logic if one leg fails
+
+#### 2.2 Real-time Price Updates (src/main.py:239)
+**Status**: TODO comment
+- [ ] Create `_fetch_current_prices()` method
+- [ ] Periodically fetch market prices for open positions
+- [ ] Update `position.current_price` for all open positions
+- [ ] Calculate unrealized P&L in real-time
+- [ ] Trigger exit signals based on updated prices
+- [ ] Add price staleness checks
+
+#### 2.3 Order Status Management
+**Status**: Not implemented
+- [ ] Poll order status after placement
+- [ ] Update order objects with fill information
+- [ ] Handle partial fills (decide whether to cancel or wait)
+- [ ] Implement order timeouts
+- [ ] Add order cancellation logic
+- [ ] Track fill prices vs. expected prices (slippage)
+
+---
+
+### Phase 3: API Server Fixes (Medium Priority)
+
+#### 3.1 Fix API Endpoints (api.py)
+**Status**: Calls non-existent methods on ArbitrageBot
+- [ ] Fix `bot.run_strategy_cycle()` → should be `bot.run_cycle()` (Line 104)
+- [ ] Fix `bot.collect_market_data()` → implement or use `_fetch_markets()` (Line 116)
+- [ ] Fix `bot.api_keys` → use `settings.KALSHI_API_KEY` etc. (Line 131)
+- [ ] Fix `bot.platforms` → use `bot.kalshi_client` / `bot.polymarket_client` (Line 134)
+- [ ] Fix `bot.strategy.find_opportunities()` → refactor to use existing flow (Line 141)
+- [ ] Fix `bot.search_events()` → implement or remove (Line 188)
+- [ ] Fix `bot.execute_trade()` → implement or use existing execution flow (Line 207)
+- [ ] Add `bot.get_portfolio_summary()` method (Line 238)
+- [ ] Add `bot.find_opportunities()` method (Line 235)
+- [ ] Add `bot.data_collector` or refactor (Line 231)
+
+#### 3.2 Dashboard Integration
+**Status**: Backend incomplete
+- [ ] Connect dashboard to real bot data
+- [ ] Remove mock trade data (Lines 263-295)
+- [ ] Fetch real trade history from repository
+- [ ] Fetch real activity feed from logs
+- [ ] Add WebSocket for real-time updates (optional)
+
+---
+
+### Phase 4: Alerting & Monitoring (Medium Priority)
+
+#### 4.1 Telegram Notifications (src/services/monitoring/alerter.py:147-153)
+**Status**: Stubbed out
+- [ ] Implement actual Telegram Bot API call using `requests`
+- [ ] Add proper error handling
+- [ ] Implement retry logic for failed sends
+- [ ] Test with real bot token and chat ID
+- [ ] Add message rate limiting (avoid spam)
+- [ ] Format messages with markdown for better readability
+
+#### 4.2 Enhanced Monitoring
+**Status**: Basic monitoring exists, needs expansion
+- [ ] Add performance metrics collection
+- [ ] Track latency for each step in cycle
+- [ ] Monitor API response times
+- [ ] Track success/failure rates
+- [ ] Add circuit breakers for repeated failures
+- [ ] Implement emergency stop mechanism
+- [ ] Add health check endpoint
+
+---
+
+### Phase 5: Testing (High Priority)
+
+#### 5.1 Rewrite Test Suite
+**Status**: All tests reference old architecture (will fail)
+- [ ] Rewrite `tests/test_executors.py` for new structure
+- [ ] Rewrite `tests/test_integration.py` for new structure
+- [ ] Rewrite `tests/test_collectors.py` → should be test_exchanges.py
+- [ ] Rewrite `tests/test_trackers.py` for new structure
+- [ ] Update `tests/conftest.py` with new fixtures
+
+#### 5.2 Add New Tests
+**Status**: Need comprehensive test coverage
+- [ ] Unit tests for `src/services/matching/matcher.py`
+- [ ] Unit tests for `src/services/matching/scorer.py`
+- [ ] Unit tests for `src/services/execution/validator.py`
+- [ ] Unit tests for `src/services/execution/executor.py`
+- [ ] Unit tests for `src/strategies/simple_arb.py`
+- [ ] Mock exchange clients for testing
+- [ ] Integration test for full arbitrage cycle
+- [ ] Test error handling and edge cases
+
+---
+
+### Phase 6: Database & Persistence (Medium Priority)
+
+#### 6.1 SQL Database Implementation
+**Status**: In-memory only (loses data on restart)
+- [ ] Implement SQLite backend for Repository
+- [ ] Create database schema from `src/database/schema.py`
+- [ ] Add SQLAlchemy ORM models
+- [ ] Implement migrations system
+- [ ] Add connection pooling
+- [ ] Test PostgreSQL compatibility (production)
+- [ ] Add database backup/restore
+
+#### 6.2 Data Retention
+**Status**: Not implemented
+- [ ] Implement data archiving for old opportunities
+- [ ] Add trade history export (CSV, JSON)
+- [ ] Implement log rotation
+- [ ] Add database cleanup jobs
+
+---
+
+### Phase 7: Advanced Features (Nice to Have)
+
+#### 7.1 Order Book Analysis
+**Status**: Not implemented (uses mid-price only)
+- [ ] Fetch order book depth from exchanges
+- [ ] Analyze liquidity before placing orders
+- [ ] Calculate actual executable prices
+- [ ] Check if sufficient liquidity exists
+- [ ] Adjust position size based on depth
+
+#### 7.2 Risk Management Enhancements
+**Status**: Basic validation exists, needs improvement
+- [ ] Enforce portfolio-level exposure limits
+- [ ] Add per-exchange exposure limits
+- [ ] Implement correlation risk checks
+- [ ] Add maximum drawdown limits
+- [ ] Implement position concentration limits
+- [ ] Add margin/capital utilization tracking
+
+#### 7.3 Multi-leg Arbitrage
+**Status**: Only 2-leg arbitrage supported
+- [ ] Support 3+ leg arbitrage opportunities
+- [ ] Handle complex arbitrage chains
+- [ ] Optimize execution order for multi-leg
+- [ ] Add rollback for failed multi-leg trades
+
+#### 7.4 Rate Limiting & Performance
+**Status**: No actual rate limiting enforced
+- [ ] Implement token bucket rate limiter
+- [ ] Add request queuing
+- [ ] Implement concurrent API requests
+- [ ] Add caching for market data
+- [ ] Optimize matching algorithm performance
+- [ ] Add connection pooling for HTTP requests
+
+#### 7.5 Backtesting Framework
+**Status**: Not implemented
+- [ ] Create historical data collection system
+- [ ] Build backtesting engine
+- [ ] Implement strategy performance metrics
+- [ ] Add visualization for backtest results
+- [ ] Test strategies on historical data
+
+#### 7.6 Additional Exchanges
+**Status**: Only Kalshi + Polymarket
+- [ ] Add PredictIt integration
+- [ ] Add Manifold Markets integration
+- [ ] Add Metaculus integration (if trading available)
+- [ ] Create generic exchange adapter interface
+
+---
+
+## 🎯 Priority Summary
+
+**🔥 BLOCKING (Do First)**:
+1. Fix Kalshi API (0 markets returned)
+2. Implement position creation from orders
+3. Implement position closing logic
+
+**⚠️ HIGH PRIORITY (Do Next)**:
+4. Real order placement implementation
+5. Real-time price updates for positions
+6. Rewrite test suite
+
+**📊 MEDIUM PRIORITY (Important)**:
+7. Fix API server methods
+8. Implement Telegram alerts
+9. Add SQL database persistence
+
+**✨ NICE TO HAVE (Future)**:
+10. Order book analysis
+11. Advanced risk management
+12. Backtesting framework
+13. Additional exchanges
