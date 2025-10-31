@@ -17,29 +17,31 @@ class Order:
     One definition used across all components.
     """
 
-    # Identification
-    id: str  # Our internal order ID
-    platform_order_id: Optional[str] = None  # Exchange's order ID (after placement)
-
-    # Order details
+    # Required identification fields
+    order_id: str  # Our internal order ID (using order_id to match exchange client usage)
     exchange: Exchange  # Which exchange
     market_id: str  # Which market
-    outcome: Outcome  # YES or NO
     side: OrderSide  # BUY or SELL
 
-    # Quantities and pricing
+    # Required quantities and pricing
     quantity: Quantity  # Total number of contracts
     price: Price  # Limit price per contract
+
+    # Optional fields with defaults
+    platform_order_id: Optional[str] = None  # Exchange's order ID (after placement)
+    outcome: Optional[Outcome] = None  # YES or NO (optional for compatibility)
     filled_quantity: Quantity = 0  # How many contracts filled
     average_fill_price: Price = 0.0  # Average price of fills
-
-    # Status and timing
     status: OrderStatus = OrderStatus.PENDING
     timestamp: datetime = field(default_factory=datetime.now)
     filled_at: Optional[datetime] = None
-
-    # Fees and costs
     fees: float = 0.0  # Total fees paid
+
+    # Legacy compatibility
+    @property
+    def id(self) -> str:
+        """Alias for order_id"""
+        return self.order_id
 
     def __post_init__(self):
         """Validate order data"""

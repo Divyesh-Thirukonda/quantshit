@@ -14,7 +14,7 @@ import asyncio
 import os
 from pydantic import BaseModel
 
-from src.engine.bot import ArbitrageBot
+from src.main import ArbitrageBot
 
 app = FastAPI(
     title="Quantshit Arbitrage Engine",
