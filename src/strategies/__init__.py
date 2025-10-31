@@ -1,5 +1,9 @@
-# Strategies package - Trading strategies and matching algorithms
-from .arbitrage import get_strategy
-from .planning import PortfolioPlanner, RiskManager
+"""
+Trading strategies - different approaches to arbitrage.
+Strategy pattern for extensibility - add new strategies by extending base.
+"""
 
-__all__ = ['get_strategy', 'PortfolioPlanner', 'RiskManager']
+from .base import BaseStrategy
+from .simple_arb import SimpleArbitrageStrategy
+
+__all__ = ['BaseStrategy', 'SimpleArbitrageStrategy']
