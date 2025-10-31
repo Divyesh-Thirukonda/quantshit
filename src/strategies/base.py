@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from ..models import Opportunity, Position
 from ..utils import get_logger
+from .config import StrategyConfig
 
 logger = get_logger(__name__)
 
@@ -17,15 +18,16 @@ class BaseStrategy(ABC):
     Defines the interface that all strategies must implement.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, config: StrategyConfig):
         """
-        Initialize strategy.
+        Initialize strategy with configuration.
 
         Args:
-            name: Strategy name for logging/identification
+            config: Strategy configuration with trading parameters
         """
-        self.name = name
-        logger.info(f"Strategy initialized: {name}")
+        self.config = config
+        self.name = config.name
+        logger.info(f"Strategy initialized: {self.name}")
 
     @abstractmethod
     def filter_opportunities(self, opportunities: List[Opportunity]) -> List[Opportunity]:

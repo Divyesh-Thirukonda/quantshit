@@ -10,56 +10,70 @@ from ...models import Market, Order
 from ...types import Exchange, MarketStatus, OrderStatus, OrderSide
 
 
-def parse_market(event_data: Dict[str, Any], market_data: Dict[str, Any]) -> Market:
+def parse_market(market_data: Dict[str, Any]) -> Market:
     """
-    Parse Kalshi event and market data into our Market model.
+    Parse Kalshi market data into our Market model.
 
     Args:
-        event_data: Event data from Kalshi API
-        market_data: Market data from Kalshi API
+        market_data: Market data from Kalshi /markets API
 
     Returns:
         Market object
     """
-    # Extract prices (Kalshi uses cents, we use 0-1 range)
-    yes_price = market_data.get('yes_bid', 50) / 100.0
-    no_price = market_data.get('no_bid', 50) / 100.0
+    # Extract prices (Kalshi uses cents 0-100, we use 0.0-1.0 range)
+    # Use mid-price between bid and ask for better accuracy
+    yes_bid = market_data.get('yes_bid', 50)
+    yes_ask = market_data.get('yes_ask', 50)
+    yes_price = ((yes_bid + yes_ask) / 2.0) / 100.0
 
-    # Ensure prices sum to ~1.0
-    if yes_price + no_price != 1.0:
+    no_bid = market_data.get('no_bid', 50)
+    no_ask = market_data.get('no_ask', 50)
+    no_price = ((no_bid + no_ask) / 2.0) / 100.0
+
+    # Ensure prices sum to ~1.0 (adjust if needed)
+    if abs(yes_price + no_price - 1.0) > 0.01:
         no_price = 1.0 - yes_price
 
-    # Extract volume and liquidity
-    volume = market_data.get('volume', 0.0)
-    liquidity = market_data.get('open_interest', 0.0)
+    # Extract volume (convert to dollars: volume * notional_value / 100)
+    volume_contracts = market_data.get('volume', 0)
+    notional_value = market_data.get('notional_value', 100)  # Usually 100 cents = $1
+    volume = (volume_contracts * notional_value) / 100.0
+
+    # Extract liquidity (already in dollars in liquidity_dollars field)
+    liquidity = float(market_data.get('liquidity_dollars', '0').replace('$', ''))
 
     # Parse expiry date
     expiry = None
-    if 'close_time' in event_data:
+    if 'close_time' in market_data:
         try:
-            expiry = datetime.fromisoformat(event_data['close_time'].replace('Z', '+00:00'))
+            expiry = datetime.fromisoformat(market_data['close_time'].replace('Z', '+00:00'))
         except:
             pass
 
     # Determine status
     status = MarketStatus.OPEN
-    market_status = market_data.get('status', 'open').lower()
-    if market_status == 'closed':
+    market_status = market_data.get('status', 'active').lower()
+    if market_status == 'active':
+        status = MarketStatus.OPEN
+    elif market_status == 'closed':
         status = MarketStatus.CLOSED
-    elif market_status == 'settled':
+    elif market_status == 'settled' or market_status == 'finalized':
         status = MarketStatus.SETTLED
 
+    # Extract category from event ticker if available
+    category = market_data.get('category')
+
     return Market(
-        id=market_data.get('ticker', event_data.get('event_ticker', 'unknown')),
+        id=market_data.get('ticker', 'unknown'),
         exchange=Exchange.KALSHI,
-        title=event_data.get('title', 'Unknown Market'),
+        title=market_data.get('title', 'Unknown Market'),
         yes_price=yes_price,
         no_price=no_price,
         volume=volume,
         liquidity=liquidity,
         status=status,
         expiry=expiry,
-        category=event_data.get('category', None)
+        category=category
     )
 
 

@@ -22,10 +22,6 @@ class Settings:
         self.KALSHI_API_KEY: Optional[str] = os.getenv('KALSHI_API_KEY')
         self.POLYMARKET_API_KEY: Optional[str] = os.getenv('POLYMARKET_API_KEY')
 
-        # Trading parameters
-        self.MIN_SPREAD: float = float(os.getenv('MIN_SPREAD', '0.05'))  # 5% minimum spread
-        self.MIN_VOLUME: float = float(os.getenv('MIN_VOLUME', '1000'))  # $1000 minimum volume
-
         # Exchange endpoints (can switch between prod/testnet)
         self.KALSHI_API_URL: str = os.getenv('KALSHI_API_URL', 'https://api.kalshi.com/v1')
         self.POLYMARKET_API_URL: str = os.getenv('POLYMARKET_API_URL', 'https://api.polymarket.com')
@@ -63,12 +59,6 @@ class Settings:
         if self.ENABLE_ALERTS:
             if not self.TELEGRAM_BOT_TOKEN or not self.TELEGRAM_CHAT_ID:
                 errors.append("Telegram settings required when alerts are enabled")
-
-        if self.MIN_SPREAD < 0 or self.MIN_SPREAD > 1:
-            errors.append(f"MIN_SPREAD must be between 0 and 1, got {self.MIN_SPREAD}")
-
-        if self.MIN_VOLUME < 0:
-            errors.append(f"MIN_VOLUME must be non-negative, got {self.MIN_VOLUME}")
 
         return errors
 

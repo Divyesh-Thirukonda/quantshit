@@ -35,7 +35,7 @@ class KalshiClient(BaseExchangeClient):
 
     def get_markets(self, min_volume: float = 0) -> List[Market]:
         """
-        Fetch available markets from Kalshi.
+        Fetch available markets from Kalshi using cursor pagination.
 
         Args:
             min_volume: Minimum volume filter (in dollars)
@@ -46,60 +46,70 @@ class KalshiClient(BaseExchangeClient):
         try:
             logger.info(f"Fetching markets from Kalshi (min_volume: ${min_volume})")
 
-            # Fetch events (markets on Kalshi are called "events")
-            url = f"{self.BASE_URL}/events"
-            params = {
-                'status': 'open',
-                'limit': 200  # Fetch up to 200 markets
-            }
-
-            response = self.session.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
             markets = []
-            events = data.get('events', [])
+            cursor = None
+            page = 1
+            total_fetched = 0
 
-            for event_data in events:
-                # Get market details for each event
-                try:
-                    market = self._fetch_market_details(event_data)
-                    if market and market.volume >= min_volume:
-                        markets.append(market)
-                except Exception as e:
-                    logger.warning(f"Failed to parse Kalshi market: {e}")
-                    continue
+            # Fetch markets directly from /markets endpoint
+            url = f"{self.BASE_URL}/markets"
 
-            logger.info(f"Fetched {len(markets)} markets from Kalshi")
+            # Paginate through all available markets
+            while True:
+                params = {
+                    'status': 'open',
+                    'limit': 200  # Max per page
+                }
+
+                # Add cursor for pagination if available
+                if cursor:
+                    params['cursor'] = cursor
+
+                logger.debug(f"Fetching Kalshi page {page} (cursor: {cursor or 'initial'})")
+
+                response = self.session.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+
+                market_list = data.get('markets', [])
+                total_fetched += len(market_list)
+
+                logger.debug(f"Page {page}: Received {len(market_list)} markets from Kalshi API")
+
+                # Parse markets from this page
+                for market_data in market_list:
+                    try:
+                        market = parse_market(market_data)
+                        if market and market.volume >= min_volume:
+                            markets.append(market)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse Kalshi market: {e}")
+                        continue
+
+                # Check for next page cursor
+                cursor = data.get('cursor')
+
+                # Break if no more pages or no markets returned
+                if not cursor or len(market_list) == 0:
+                    break
+
+                page += 1
+
+                # Safety limit to prevent infinite loops (adjust as needed)
+                if page > 50:
+                    logger.warning(f"Reached maximum page limit (50 pages, {total_fetched} total markets)")
+                    break
+
+            logger.info(f"Fetched {len(markets)} markets from Kalshi across {page} pages (total raw: {total_fetched}, after filters)")
             return markets
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Kalshi API request failed: {e}")
             return []
         except Exception as e:
-            logger.error(f"Unexpected error fetching Kalshi markets: {e}")
+            logger.error(f"Unexpected error fetching Kalshi markets: {e}", exc_info=True)
             return []
 
-    def _fetch_market_details(self, event_data: Dict[str, Any]) -> Market:
-        """
-        Fetch detailed market information for an event.
-
-        Args:
-            event_data: Event data from Kalshi API
-
-        Returns:
-            Market object
-        """
-        # Get the first market for this event (events can have multiple markets)
-        markets = event_data.get('markets', [])
-        if not markets:
-            return None
-
-        # Use the first market
-        market_data = markets[0]
-
-        # Parse into our Market model
-        return parse_market(event_data, market_data)
 
     def place_order(
         self,

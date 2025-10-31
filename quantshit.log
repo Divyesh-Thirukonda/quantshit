@@ -1,102 +1,241 @@
-2025-10-30 19:53:00,691 - src.main - INFO - main - ============================================================
-2025-10-30 19:53:00,692 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
-2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
-2025-10-30 19:53:00,692 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
-2025-10-30 19:53:00,692 - src.database.schema - INFO - schema - Database ready
-2025-10-30 19:53:00,692 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
-2025-10-30 19:53:00,692 - src.main - INFO - main - Initializing exchange clients...
-2025-10-30 19:53:00,692 - src.main - INFO - main -   Kalshi client initialized
-2025-10-30 19:53:00,692 - src.main - INFO - main -   Polymarket client initialized
-2025-10-30 19:53:00,692 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 19:53:00,692 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 19:53:00,692 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
-2025-10-30 19:53:00,692 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
-2025-10-30 19:53:00,692 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
-2025-10-30 19:53:00,692 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
-2025-10-30 19:53:00,692 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
-2025-10-30 19:53:00,692 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60
-2025-10-30 19:53:00,692 - src.main - INFO - main - Arbitrage bot initialized successfully
-2025-10-30 19:53:00,692 - src.main - INFO - main - Paper trading: True
-2025-10-30 19:53:00,692 - src.main - INFO - main - Alerts enabled: False
-2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
-2025-10-30 19:53:00,692 - src.main - INFO - main - Running single cycle mode
-
-2025-10-30 19:53:00,692 - src.main - INFO - main - 
-============================================================
-2025-10-30 19:53:00,692 - src.main - INFO - main - Starting cycle #1 at 2025-10-30 19:53:00.692474
-2025-10-30 19:53:00,692 - src.main - INFO - main - ============================================================
-
-2025-10-30 19:53:00,692 - src.main - INFO - main - =� Step 1: Fetching markets from exchanges...
-2025-10-30 19:53:00,692 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $1000.0)
-2025-10-30 19:53:00,818 - src.exchanges.kalshi.client - INFO - client - Fetched 0 markets from Kalshi
-2025-10-30 19:53:00,819 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $1000.0)
-2025-10-30 19:53:01,262 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket
-2025-10-30 19:53:01,264 - src.main - INFO - main -   Kalshi: 0 markets
-2025-10-30 19:53:01,264 - src.main - INFO - main -   Polymarket: 100 markets
-2025-10-30 19:53:01,264 - src.main - INFO - main - 
-= Step 2: Finding matching markets...
-2025-10-30 19:53:01,264 - src.services.matching.matcher - INFO - matcher - Matching 0 Kalshi markets with 100 Polymarket markets
-2025-10-30 19:53:01,264 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
-2025-10-30 19:53:01,264 - src.main - INFO - main -   Found 0 matched pairs
-2025-10-30 19:53:01,264 - src.main - INFO - main - No matching markets found - skipping to next cycle
-2025-10-30 19:53:01,264 - src.main - INFO - main - 
-============================================================
-2025-10-30 19:53:01,264 - src.main - INFO - main - Shutting down Quantshit Arbitrage Engine
-2025-10-30 19:53:01,264 - src.main - INFO - main - ============================================================
-2025-10-30 19:53:01,264 - src.main - INFO - main - Total cycles run: 1
-2025-10-30 19:53:01,264 - src.main - INFO - main - Total trades executed: 0
-2025-10-30 19:53:01,264 - src.main - INFO - main - Total opportunities found: 0
-2025-10-30 19:53:01,264 - src.main - INFO - main - Total realized P&L: $+0.00
-2025-10-30 19:53:01,264 - src.main - INFO - main - Total unrealized P&L: $+0.00
-2025-10-30 19:53:01,264 - src.main - INFO - main - 
-Goodbye! =K
-2025-10-30 23:59:38,012 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.7
-2025-10-30 23:59:38,012 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,012 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,012 - src.services.matching.matcher - INFO - matcher - Matching 3 Kalshi markets with 3 Polymarket markets
-2025-10-30 23:59:38,012 - src.services.matching.matcher - INFO - matcher - Found 1 market matches
-2025-10-30 23:59:38,013 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.8
-2025-10-30 23:59:38,013 - src.services.matching.matcher - INFO - matcher - Matching 1 Kalshi markets with 1 Polymarket markets
-2025-10-30 23:59:38,013 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
-2025-10-30 23:59:38,013 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,013 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,014 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,014 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,014 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,014 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.9
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Matching 1 Kalshi markets with 1 Polymarket markets
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.3
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Matching 1 Kalshi markets with 1 Polymarket markets
-2025-10-30 23:59:38,015 - src.services.matching.matcher - INFO - matcher - Found 1 market matches
-2025-10-30 23:59:38,015 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 3.00%, Kalshi fee: 1.00%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,015 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,016 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
-2025-10-30 23:59:38,016 - src.services.matching.matcher - INFO - matcher - Matching 3 Kalshi markets with 3 Polymarket markets
-2025-10-30 23:59:38,016 - src.services.matching.matcher - INFO - matcher - Found 1 market matches
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Scoring 1 matched pairs
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Found 2 profitable opportunities
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Scoring 2 matched pairs
-2025-10-30 23:59:38,016 - src.services.matching.scorer - INFO - scorer - Found 4 profitable opportunities
-2025-10-30 23:59:38,017 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,026 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,029 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 1.00%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,029 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,029 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
-2025-10-30 23:59:38,030 - src.services.execution.validator - INFO - validator - Validator initialized with $5,000.00 available capital
-2025-10-30 23:59:38,030 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
-2025-10-30 23:59:38,030 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,030 - src.services.execution.validator - INFO - validator - ✓ Validation passed for YES: Will Bitcoin reach $100k by end of 2025?... (profit: $125.50, 3.15%)
-2025-10-30 23:59:38,031 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,034 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,034 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,034 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,034 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,038 - src.services.execution.validator - INFO - validator - Validator initialized with $10.00 available capital
-2025-10-30 23:59:38,038 - src.services.execution.validator - INFO - validator - Validator initialized with $100,000.00 available capital
-2025-10-30 23:59:38,038 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
-2025-10-30 23:59:38,038 - src.services.execution.validator - INFO - validator - Validator initialized with $10,000.00 available capital
+2025-10-31 14:22:05,288 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:22:05,288 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 3.00%, min_confidence: 0.60, min_volume: $5,000
+2025-10-31 14:22:12,842 - src.main - INFO - main - ============================================================
+2025-10-31 14:22:12,842 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-31 14:22:12,842 - src.main - INFO - main - ============================================================
+2025-10-31 14:22:12,842 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-31 14:22:12,842 - src.database.schema - INFO - schema - Database ready
+2025-10-31 14:22:12,842 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-31 14:22:12,842 - src.main - INFO - main - Initializing exchange clients...
+2025-10-31 14:22:12,842 - src.main - INFO - main -   Kalshi client initialized
+2025-10-31 14:22:12,842 - src.main - INFO - main -   Polymarket client initialized
+2025-10-31 14:22:12,842 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 14:22:12,842 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 14:22:12,842 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-31 14:22:12,842 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-31 14:22:12,842 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-31 14:22:12,842 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-31 14:22:12,842 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:22:12,842 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60, min_volume: $1,000
+2025-10-31 14:22:12,842 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-31 14:22:12,842 - src.main - INFO - main - Paper trading: True
+2025-10-31 14:22:12,842 - src.main - INFO - main - Alerts enabled: False
+2025-10-31 14:22:12,842 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,785 - src.strategies.base - INFO - base - Strategy initialized: Conservative Arbitrage
+2025-10-31 14:23:45,785 - src.strategies.simple_arb - INFO - simple_arb - Conservative Arbitrage initialized - min_profit: 10.00%, min_confidence: 0.80, min_volume: $10,000
+2025-10-31 14:23:45,785 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,785 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-31 14:23:45,785 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,785 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-31 14:23:45,785 - src.database.schema - INFO - schema - Database ready
+2025-10-31 14:23:45,785 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-31 14:23:45,785 - src.main - INFO - main - Initializing exchange clients...
+2025-10-31 14:23:45,785 - src.main - INFO - main -   Kalshi client initialized
+2025-10-31 14:23:45,785 - src.main - INFO - main -   Polymarket client initialized
+2025-10-31 14:23:45,785 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 14:23:45,785 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 14:23:45,785 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-31 14:23:45,785 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-31 14:23:45,786 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-31 14:23:45,786 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-31 14:23:45,786 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:23:45,786 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60, min_volume: $1,000
+2025-10-31 14:23:45,786 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-31 14:23:45,786 - src.main - INFO - main - Paper trading: True
+2025-10-31 14:23:45,786 - src.main - INFO - main - Alerts enabled: False
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.strategies.base - INFO - base - Strategy initialized: Aggressive Arbitrage
+2025-10-31 14:23:45,786 - src.strategies.simple_arb - INFO - simple_arb - Aggressive Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.40, min_volume: $500
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-31 14:23:45,786 - src.database.schema - INFO - schema - Database ready
+2025-10-31 14:23:45,786 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-31 14:23:45,786 - src.main - INFO - main - Initializing exchange clients...
+2025-10-31 14:23:45,786 - src.main - INFO - main -   Kalshi client initialized
+2025-10-31 14:23:45,786 - src.main - INFO - main -   Polymarket client initialized
+2025-10-31 14:23:45,786 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 14:23:45,786 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 14:23:45,786 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-31 14:23:45,786 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-31 14:23:45,786 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-31 14:23:45,786 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-31 14:23:45,786 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:23:45,786 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60, min_volume: $1,000
+2025-10-31 14:23:45,786 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-31 14:23:45,786 - src.main - INFO - main - Paper trading: True
+2025-10-31 14:23:45,786 - src.main - INFO - main - Alerts enabled: False
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:23:45,786 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 5.00%, min_confidence: 0.50, min_volume: $1,000
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 14:23:45,786 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-31 14:23:45,786 - src.database.schema - INFO - schema - Database ready
+2025-10-31 14:23:45,786 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-31 14:23:45,786 - src.main - INFO - main - Initializing exchange clients...
+2025-10-31 14:23:45,786 - src.main - INFO - main -   Kalshi client initialized
+2025-10-31 14:23:45,786 - src.main - INFO - main -   Polymarket client initialized
+2025-10-31 14:23:45,786 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 14:23:45,786 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 14:23:45,786 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-31 14:23:45,786 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-31 14:23:45,786 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-31 14:23:45,786 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-31 14:23:45,786 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 14:23:45,786 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60, min_volume: $1,000
+2025-10-31 14:23:45,786 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-31 14:23:45,786 - src.main - INFO - main - Paper trading: True
+2025-10-31 14:23:45,786 - src.main - INFO - main - Alerts enabled: False
+2025-10-31 14:23:45,786 - src.main - INFO - main - ============================================================
+2025-10-31 16:29:40,556 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $0)
+2025-10-31 16:29:41,289 - src.exchanges.kalshi.client - INFO - client - Fetched 200 markets from Kalshi (after filters)
+2025-10-31 16:29:50,878 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $100)
+2025-10-31 16:29:51,582 - src.exchanges.kalshi.client - INFO - client - Fetched 9 markets from Kalshi (after filters)
+2025-10-31 16:30:04,543 - src.main - INFO - main - ============================================================
+2025-10-31 16:30:04,543 - src.main - INFO - main - Initializing Quantshit Arbitrage Engine
+2025-10-31 16:30:04,543 - src.main - INFO - main - ============================================================
+2025-10-31 16:30:04,543 - src.database.schema - INFO - schema - Database initialization (currently in-memory mode)
+2025-10-31 16:30:04,543 - src.database.schema - INFO - schema - Database ready
+2025-10-31 16:30:04,543 - src.database.repository - INFO - repository - Repository initialized (in-memory mode)
+2025-10-31 16:30:04,543 - src.main - INFO - main - Initializing exchange clients...
+2025-10-31 16:30:04,543 - src.main - INFO - main -   Kalshi client initialized
+2025-10-31 16:30:04,543 - src.main - INFO - main -   Polymarket client initialized
+2025-10-31 16:30:04,543 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 16:30:04,543 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 16:30:04,543 - src.services.execution.validator - INFO - validator - Validator initialized with $20,000.00 available capital
+2025-10-31 16:30:04,543 - src.services.execution.executor - INFO - executor - Executor initialized (paper_trading=True)
+2025-10-31 16:30:04,543 - src.services.monitoring.tracker - INFO - tracker - Position tracker initialized
+2025-10-31 16:30:04,543 - src.services.monitoring.alerter - INFO - alerter - Alerter initialized (enabled=False)
+2025-10-31 16:30:04,543 - src.strategies.base - INFO - base - Strategy initialized: Simple Arbitrage
+2025-10-31 16:30:04,543 - src.strategies.simple_arb - INFO - simple_arb - Simple Arbitrage initialized - min_profit: 2.00%, min_confidence: 0.60, min_volume: $1,000
+2025-10-31 16:30:04,543 - src.main - INFO - main - Arbitrage bot initialized successfully
+2025-10-31 16:30:04,543 - src.main - INFO - main - Paper trading: True
+2025-10-31 16:30:04,544 - src.main - INFO - main - Alerts enabled: False
+2025-10-31 16:30:04,544 - src.main - INFO - main - ============================================================
+2025-10-31 16:30:04,544 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $1000.0)
+2025-10-31 16:30:05,261 - src.exchanges.kalshi.client - INFO - client - Fetched 2 markets from Kalshi (after filters)
+2025-10-31 16:30:05,261 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $1000.0)
+2025-10-31 16:30:05,736 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket
+2025-10-31 17:14:00,900 - src.database.schema - INFO - schema - Initializing database at quantshit.db
+2025-10-31 17:14:00,918 - src.database.schema - INFO - schema - Database initialized successfully
+2025-10-31 17:14:00,919 - src.database.schema - INFO - schema - Database ready
+2025-10-31 17:14:13,434 - src.database.schema - INFO - schema - Initializing database at quantshit.db
+2025-10-31 17:14:13,440 - src.database.schema - INFO - schema - Database initialized successfully
+2025-10-31 17:14:13,440 - src.database.schema - INFO - schema - Database ready
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - Initializing MarketScanner
+2025-10-31 17:14:13,440 - src.database.sqlite_repository - INFO - sqlite_repository - SQLiteRepository initialized at quantshit.db
+2025-10-31 17:14:13,440 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 17:14:13,440 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - MarketScanner initialized
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - ============================================================
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - Starting full market scan
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - ============================================================
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - Fetching markets (min_volume: $0)
+2025-10-31 17:14:13,440 - src.scanner - INFO - scanner - Fetching from Kalshi...
+2025-10-31 17:14:13,440 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $0)
+2025-10-31 17:14:13,943 - src.exchanges.kalshi.client - INFO - client - Fetched 200 markets from Kalshi (after filters)
+2025-10-31 17:14:13,948 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 200 markets to database
+2025-10-31 17:14:13,949 - src.scanner - INFO - scanner - Fetching from Polymarket...
+2025-10-31 17:14:13,949 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $0)
+2025-10-31 17:14:14,456 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket
+2025-10-31 17:14:14,462 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 100 markets to database
+2025-10-31 17:14:14,462 - src.scanner - INFO - scanner - Stored 200 Kalshi markets and 100 Polymarket markets
+2025-10-31 17:14:14,462 - src.scanner - INFO - scanner - Finding market matches...
+2025-10-31 17:14:14,465 - src.scanner - INFO - scanner - Matching 200 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:14:14,465 - src.services.matching.matcher - INFO - matcher - Matching 200 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:14:14,465 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 17:14:14,465 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 0 market matches to database
+2025-10-31 17:14:14,465 - src.scanner - INFO - scanner - Stored 0 market matches
+2025-10-31 17:14:14,465 - src.scanner - INFO - scanner - Identifying arbitrage opportunities...
+2025-10-31 17:14:14,467 - src.services.matching.matcher - INFO - matcher - Matching 200 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:14:14,467 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 17:14:14,467 - src.services.matching.scorer - INFO - scorer - Scoring 0 matched pairs
+2025-10-31 17:14:14,467 - src.services.matching.scorer - INFO - scorer - Found 0 profitable opportunities
+2025-10-31 17:14:14,467 - src.scanner - INFO - scanner - Found 0 total opportunities, stored 0 after filtering
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner - ============================================================
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner - Scan completed
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner -   Markets: 200 Kalshi + 100 Polymarket
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner -   Matches: 0
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner -   Opportunities: 0
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner -   Duration: 1.03s
+2025-10-31 17:14:14,468 - src.scanner - INFO - scanner - ============================================================
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - Market Scanner CLI
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - Initializing MarketScanner
+2025-10-31 17:42:19,618 - src.database.sqlite_repository - INFO - sqlite_repository - SQLiteRepository initialized at quantshit.db
+2025-10-31 17:42:19,618 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 17:42:19,618 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - MarketScanner initialized
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - ============================================================
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - Starting full market scan
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - ============================================================
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - Fetching markets (min_volume: $1,000)
+2025-10-31 17:42:19,618 - __main__ - INFO - scanner - Fetching from Kalshi...
+2025-10-31 17:42:19,618 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $1000.0)
+2025-10-31 17:42:20,210 - src.exchanges.kalshi.client - INFO - client - Fetched 2 markets from Kalshi (after filters)
+2025-10-31 17:42:20,218 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 2 markets to database
+2025-10-31 17:42:20,218 - __main__ - INFO - scanner - Fetching from Polymarket...
+2025-10-31 17:42:20,218 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $1000.0)
+2025-10-31 17:42:20,670 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket
+2025-10-31 17:42:20,675 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 100 markets to database
+2025-10-31 17:42:20,676 - __main__ - INFO - scanner - Stored 2 Kalshi markets and 100 Polymarket markets
+2025-10-31 17:42:20,676 - __main__ - INFO - scanner - Finding market matches...
+2025-10-31 17:42:20,678 - __main__ - INFO - scanner - Matching 202 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:42:20,678 - src.services.matching.matcher - INFO - matcher - Matching 202 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:42:20,678 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 17:42:20,678 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 0 market matches to database
+2025-10-31 17:42:20,678 - __main__ - INFO - scanner - Stored 0 market matches
+2025-10-31 17:42:20,678 - __main__ - INFO - scanner - Identifying arbitrage opportunities...
+2025-10-31 17:42:20,680 - src.services.matching.matcher - INFO - matcher - Matching 202 Kalshi markets with 0 Polymarket markets
+2025-10-31 17:42:20,680 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 17:42:20,680 - src.services.matching.scorer - INFO - scorer - Scoring 0 matched pairs
+2025-10-31 17:42:20,680 - src.services.matching.scorer - INFO - scorer - Found 0 profitable opportunities
+2025-10-31 17:42:20,680 - __main__ - INFO - scanner - Found 0 total opportunities, stored 0 after filtering
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner - ============================================================
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner - Scan completed
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner -   Markets: 2 Kalshi + 100 Polymarket
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner -   Matches: 0
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner -   Opportunities: 0
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner -   Duration: 1.06s
+2025-10-31 17:42:20,681 - __main__ - INFO - scanner - ============================================================
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - Market Scanner CLI
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - Initializing MarketScanner
+2025-10-31 18:01:38,503 - src.database.sqlite_repository - INFO - sqlite_repository - SQLiteRepository initialized at quantshit.db
+2025-10-31 18:01:38,503 - src.services.matching.matcher - INFO - matcher - Matcher initialized with similarity threshold: 0.5
+2025-10-31 18:01:38,503 - src.services.matching.scorer - INFO - scorer - Scorer initialized - min_profit: 2.00%, Kalshi fee: 0.70%, Polymarket fee: 2.00%
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - MarketScanner initialized
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - ============================================================
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - Starting full market scan
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - ============================================================
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - Fetching markets (min_volume: $1,000)
+2025-10-31 18:01:38,503 - __main__ - INFO - scanner - Fetching from Kalshi...
+2025-10-31 18:01:38,503 - src.exchanges.kalshi.client - INFO - client - Fetching markets from Kalshi (min_volume: $1000.0)
+2025-10-31 18:01:49,456 - src.exchanges.kalshi.client - WARNING - client - Reached maximum page limit (50 pages, 10000 total markets)
+2025-10-31 18:01:49,456 - src.exchanges.kalshi.client - INFO - client - Fetched 171 markets from Kalshi across 51 pages (total raw: 10000, after filters)
+2025-10-31 18:01:49,469 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 171 markets to database
+2025-10-31 18:01:49,469 - __main__ - INFO - scanner - Fetching from Polymarket...
+2025-10-31 18:01:49,469 - src.exchanges.polymarket.client - INFO - client - Fetching markets from Polymarket (min_volume: $1000.0)
+2025-10-31 18:01:49,910 - src.exchanges.polymarket.client - INFO - client - Fetched 100 markets from Polymarket across 1 pages (total raw: 100)
+2025-10-31 18:01:49,917 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 100 markets to database
+2025-10-31 18:01:49,918 - __main__ - INFO - scanner - Stored 171 Kalshi markets and 100 Polymarket markets
+2025-10-31 18:01:49,918 - __main__ - INFO - scanner - Finding market matches...
+2025-10-31 18:01:49,922 - __main__ - INFO - scanner - Matching 369 Kalshi markets with 0 Polymarket markets
+2025-10-31 18:01:49,922 - src.services.matching.matcher - INFO - matcher - Matching 369 Kalshi markets with 0 Polymarket markets
+2025-10-31 18:01:49,922 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 18:01:49,922 - src.database.sqlite_repository - INFO - sqlite_repository - Saved 0 market matches to database
+2025-10-31 18:01:49,922 - __main__ - INFO - scanner - Stored 0 market matches
+2025-10-31 18:01:49,923 - __main__ - INFO - scanner - Identifying arbitrage opportunities...
+2025-10-31 18:01:49,926 - src.services.matching.matcher - INFO - matcher - Matching 369 Kalshi markets with 0 Polymarket markets
+2025-10-31 18:01:49,926 - src.services.matching.matcher - INFO - matcher - Found 0 market matches
+2025-10-31 18:01:49,926 - src.services.matching.scorer - INFO - scorer - Scoring 0 matched pairs
+2025-10-31 18:01:49,926 - src.services.matching.scorer - INFO - scorer - Found 0 profitable opportunities
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner - Found 0 total opportunities, stored 0 after filtering
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner - ============================================================
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner - Scan completed
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner -   Markets: 171 Kalshi + 100 Polymarket
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner -   Matches: 0
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner -   Opportunities: 0
+2025-10-31 18:01:49,926 - __main__ - INFO - scanner -   Duration: 11.42s
+2025-10-31 18:01:49,927 - __main__ - INFO - scanner - ============================================================

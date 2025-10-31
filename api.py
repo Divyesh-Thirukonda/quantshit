@@ -101,7 +101,7 @@ async def health_check():
 async def run_strategy():
     """Manually trigger a strategy run"""
     try:
-        bot.run_strategy_cycle()
+        bot.run_cycle()
         return {"success": True, "message": "Strategy cycle completed"}
     except Exception as e:
         return JSONResponse(
@@ -113,7 +113,30 @@ async def run_strategy():
 async def get_markets():
     """Get current market data"""
     try:
-        markets_data = bot.collect_market_data()
+        # Fetch markets from both exchanges
+        kalshi_markets, polymarket_markets = bot._fetch_markets()
+
+        markets_data = {
+            "kalshi": [
+                {
+                    "id": m.market_id,
+                    "title": m.title,
+                    "yes_price": m.yes_price,
+                    "no_price": m.no_price,
+                    "volume": m.volume
+                } for m in kalshi_markets[:10]  # Limit to 10 for API
+            ],
+            "polymarket": [
+                {
+                    "id": m.market_id,
+                    "title": m.title,
+                    "yes_price": m.yes_price,
+                    "no_price": m.no_price,
+                    "volume": m.volume
+                } for m in polymarket_markets[:10]  # Limit to 10 for API
+            ]
+        }
+
         return {"success": True, "data": markets_data}
     except Exception as e:
         return JSONResponse(
@@ -125,45 +148,46 @@ async def get_markets():
 async def scan_opportunities(request: ScanRequest):
     """Scan for arbitrage opportunities with configurable parameters"""
     try:
-        # Collect market data from specified venues only
+        # Fetch markets from exchanges
+        kalshi_markets, polymarket_markets = bot._fetch_markets()
+
+        # Filter by requested venues if specified
         if request.venues:
-            # Filter to only requested venues
-            available_venues = [v for v in request.venues if v in bot.api_keys]
-            markets_data = {}
-            for venue in available_venues:
-                venue_markets = bot.platforms[venue].get_recent_markets()
-                markets_data[venue] = venue_markets
-        else:
-            # Use all platforms
-            markets_data = bot.collect_market_data()
-        
-        # Find opportunities using specified strategy
-        opportunities = bot.strategy.find_opportunities(markets_data)
-        
+            if "kalshi" not in request.venues:
+                kalshi_markets = []
+            if "polymarket" not in request.venues:
+                polymarket_markets = []
+
+        # Find matching markets
+        matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
+
+        # Score opportunities
+        opportunities = bot.scorer.score_opportunities(matched_pairs)
+
         # Filter by minimum edge
-        filtered_ops = [op for op in opportunities if op['spread'] >= request.min_edge]
-        
+        filtered_ops = [op for op in opportunities if op.expected_profit_pct >= request.min_edge]
+
         # Format for web interface
         ideas = []
         for i, opp in enumerate(filtered_ops):
             ideas.append({
                 "id": f"arb_{i}",
-                "question": opp.get('outcome', 'Unknown Market'),
-                "yes_venue": opp['buy_market']['platform'],
-                "no_venue": opp['sell_market']['platform'], 
-                "yes_price": f"${opp['buy_price']:.3f}",
-                "no_price": f"${opp['sell_price']:.3f}",
+                "question": opp.outcome.value,
+                "market_title": opp.market_kalshi.title[:60],
+                "kalshi_price": f"${opp.kalshi_price:.3f}",
+                "polymarket_price": f"${opp.polymarket_price:.3f}",
                 "size": f"${request.size}",
-                "edge_bps": f"{int(opp['spread'] * 10000)}",
-                "cost": f"${opp['trade_amount']:.2f}",
-                "profit": f"${opp['expected_profit']:.2f}"
+                "edge_bps": f"{int(opp.expected_profit_pct * 10000)}",
+                "spread": f"{opp.expected_profit_pct:.2%}",
+                "profit": f"${opp.expected_profit:.2f}"
             })
-        
+
         return {
             "success": True,
             "opportunities": ideas,
             "meta": {
-                "scanned_markets": sum(len(markets) for markets in markets_data.values()),
+                "scanned_markets": len(kalshi_markets) + len(polymarket_markets),
+                "matched_pairs": len(matched_pairs),
                 "opportunities_found": len(filtered_ops),
                 "timestamp": datetime.utcnow().isoformat(),
                 "parameters": {
@@ -175,8 +199,9 @@ async def scan_opportunities(request: ScanRequest):
             }
         }
     except Exception as e:
+        import traceback
         return JSONResponse(
-            status_code=500, content={"error": str(e)}
+            status_code=500, content={"error": str(e), "traceback": traceback.format_exc()}
         )
 
 
@@ -184,9 +209,43 @@ async def scan_opportunities(request: ScanRequest):
 async def search_events(keyword: str, platforms: str = None, limit: int = 10):
     """Search for events across platforms"""
     try:
-        platform_list = platforms.split(",") if platforms else None
-        results = bot.search_events(keyword, platform_list, limit)
-        return {"success": True, "results": results}
+        # Fetch all markets
+        kalshi_markets, polymarket_markets = bot._fetch_markets()
+
+        # Filter by keyword (case-insensitive)
+        keyword_lower = keyword.lower()
+        results = []
+
+        # Search in Kalshi markets
+        if not platforms or "kalshi" in platforms:
+            for market in kalshi_markets:
+                if keyword_lower in market.title.lower():
+                    results.append({
+                        "platform": "kalshi",
+                        "id": market.market_id,
+                        "title": market.title,
+                        "yes_price": market.yes_price,
+                        "no_price": market.no_price,
+                        "volume": market.volume
+                    })
+
+        # Search in Polymarket markets
+        if not platforms or "polymarket" in platforms:
+            for market in polymarket_markets:
+                if keyword_lower in market.title.lower():
+                    results.append({
+                        "platform": "polymarket",
+                        "id": market.market_id,
+                        "title": market.title,
+                        "yes_price": market.yes_price,
+                        "no_price": market.no_price,
+                        "volume": market.volume
+                    })
+
+        # Limit results
+        results = results[:limit]
+
+        return {"success": True, "results": results, "count": len(results)}
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
@@ -195,17 +254,23 @@ async def search_events(keyword: str, platforms: str = None, limit: int = 10):
 
 @app.post("/execute")
 async def execute_trade(
-    platform: str, 
-    event_id: str, 
-    outcome: str, 
-    action: str, 
-    amount: float, 
+    platform: str,
+    event_id: str,
+    outcome: str,
+    action: str,
+    amount: float,
     price: Optional[float] = None
 ):
     """Execute a trade on a specific event"""
     try:
-        result = bot.execute_trade(platform, event_id, outcome, action, amount, price)
-        return {"success": True, "result": result}
+        # Note: This endpoint is for manual trades, not arbitrage
+        # Direct execution would require extending the bot with a manual trade method
+        # For now, return a not implemented message
+        return {
+            "success": False,
+            "error": "Manual trade execution not yet implemented",
+            "message": "Use /run-strategy to execute arbitrage opportunities"
+        }
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
@@ -227,23 +292,30 @@ async def execute_trade(
 async def get_dashboard_stats():
     """Get aggregated statistics for dashboard"""
     try:
-        # Collect market data using data_collector
-        markets_data = bot.data_collector.collect_market_data(bot.min_volume)
-        total_markets = sum(len(markets) for markets in markets_data.values())
+        # Fetch markets from both exchanges
+        kalshi_markets, polymarket_markets = bot._fetch_markets()
+        total_markets = len(kalshi_markets) + len(polymarket_markets)
 
-        # Find opportunities
-        opportunities = bot.find_opportunities(markets_data)
+        # Find matching markets and score opportunities
+        matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
+        opportunities = bot.scorer.score_opportunities(matched_pairs)
 
-        # Get portfolio info
-        portfolio = bot.get_portfolio_summary()
+        # Get repository stats
+        stats = bot.repository.get_stats()
+
+        # Get tracker summary
+        tracker_summary = bot.tracker.get_summary()
 
         return {
             "success": True,
             "stats": {
                 "total_markets_scanned": total_markets,
                 "opportunities_found": len(opportunities),
-                "platforms_active": len(markets_data.keys()),
-                "portfolio_value": portfolio.get('total_portfolio_value', 20000),
+                "platforms_active": 2,  # Kalshi + Polymarket
+                "total_trades": stats.get('total_trades', 0),
+                "total_cycles": bot.cycle_count,
+                "unrealized_pnl": tracker_summary.get('total_unrealized_pnl', 0),
+                "realized_pnl": tracker_summary.get('total_realized_pnl', 0),
                 "last_updated": datetime.utcnow().isoformat()
             }
         }
@@ -259,37 +331,33 @@ async def get_dashboard_stats():
 async def get_recent_trades(limit: int = 10):
     """Get recent trade history for dashboard"""
     try:
-        # Mock trade data for demo (in production, this would come from a database)
-        from random import uniform, choice, randint
+        # Get orders from repository
+        orders = bot.repository.get_orders()
 
-        platforms = ["polymarket", "kalshi"]
-        outcomes = ["Will Biden win 2024?", "Will Trump win 2024?", "Will Fed cut rates in 2024?", "Will S&P 500 reach 5000?"]
-        statuses = ["completed", "pending", "completed", "completed", "completed"]
-
+        # Format orders for dashboard
         trades = []
-        for i in range(limit):
-            timestamp = datetime.utcnow().timestamp() - (i * 300)  # 5 minutes apart
+        for order in orders[:limit]:
             trades.append({
-                "id": f"trade_{int(timestamp)}",
-                "timestamp": datetime.fromtimestamp(timestamp).isoformat(),
+                "id": order.order_id,
+                "timestamp": order.created_at.isoformat() if hasattr(order.created_at, 'isoformat') else str(order.created_at),
                 "type": "arbitrage",
-                "buy_platform": choice(platforms),
-                "sell_platform": choice([p for p in platforms]),
-                "outcome": choice(outcomes),
-                "buy_price": round(uniform(0.45, 0.55), 3),
-                "sell_price": round(uniform(0.55, 0.65), 3),
-                "spread": round(uniform(0.05, 0.15), 3),
-                "size": round(uniform(50, 500), 2),
-                "profit": round(uniform(5, 75), 2),
-                "status": choice(statuses)
+                "platform": order.exchange.value,
+                "market_id": order.market_id,
+                "side": order.side.value,
+                "quantity": order.quantity,
+                "price": order.price,
+                "status": order.status.value
             })
 
+        # If no real trades, return empty list instead of mock data
         return {
             "success": True,
             "trades": trades,
             "count": len(trades)
         }
     except Exception as e:
+        import traceback
+        print(f"Trades error: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500, content={"success": False, "error": str(e)}
         )

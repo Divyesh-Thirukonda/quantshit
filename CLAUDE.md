@@ -9,7 +9,9 @@ Quantshit is a cross-venue arbitrage engine for prediction markets that detects 
 **Current Status**: The codebase is now fully functional:
 - Clean architecture implemented in `src/` (models, services, strategies pattern) with exchange clients
 - Exchange clients for Kalshi and Polymarket implemented and integrated
-- Successfully fetches real market data from both exchanges
+- Successfully fetches real market data from both exchanges with cursor-based pagination
+- **NEW**: SQLite database system for persistent storage
+- **NEW**: Market scanner that fetches, matches, and stores opportunities
 - Paper trading mode is active (no real orders placed)
 
 ## Development Commands
@@ -39,6 +41,17 @@ python -m pytest tests/ -v
 python -m pytest tests/test_strategies.py -v
 python -m pytest tests/test_executors.py -v      # Tests for old structure
 python -m pytest tests/test_integration.py -v    # Tests for old structure
+```
+
+### Database Scanner
+```bash
+# Run market scan (fetch, match, store opportunities)
+python -m src.scanner
+
+# Query database
+python scripts/db_query.py stats
+python scripts/db_query.py markets
+python scripts/db_query.py opportunities
 ```
 
 ## Current Architecture (NEW - In `src/`)
@@ -114,17 +127,10 @@ Root level:
 
 ## Known Issues & Limitations
 
-### 1. Kalshi API Returns No Markets
-The Kalshi client currently returns 0 markets. This could be due to:
-- Incorrect API endpoint (currently using `https://api.elections.kalshi.com/trade-api/v2`)
-- Different response structure than expected
-- Possible authentication requirement for market data
-- Recommend testing with valid Kalshi API key and verifying endpoint/response format
-
-### 2. Tests Need Updating
+### 1. Tests Need Updating
 All tests in `tests/` reference old architecture that was removed. Tests need rewrite for new structure.
 
-### 3. Order Placement Not Tested
+### 2. Order Placement Not Tested
 The `place_order()` methods in exchange clients are implemented but haven't been tested with real API calls (paper trading mode only).
 
 ## How Data Flows (Once Exchange Clients Exist)
@@ -272,8 +278,6 @@ Required in `.env`:
 ```bash
 KALSHI_API_KEY=your_key_here
 POLYMARKET_API_KEY=your_key_here
-MIN_VOLUME=1000                 # Minimum market volume to consider
-MIN_SPREAD=0.05                 # Minimum profitable spread (5%)
 ```
 
 Optional:
@@ -283,6 +287,11 @@ ENABLE_ALERTS=false             # Enable Telegram alerts
 LOG_LEVEL=INFO                  # Logging level
 LOG_FILE=logs/arbitrage.log     # Log file path
 ```
+
+**Trading Parameters**: As of the latest refactor, trading parameters like `MIN_VOLUME`, `MIN_SPREAD`, profit thresholds, position sizes, etc. are no longer configured via environment variables. Instead, they are owned by individual strategies and configured in `src/strategies/config.py`. This allows:
+- Different strategies to have different parameters
+- Easier testing and experimentation with strategy configs
+- Clear separation: infrastructure config (`.env`) vs. trading logic (strategy config)
 
 ## Next Steps for Improvement
 
@@ -300,14 +309,17 @@ LOG_FILE=logs/arbitrage.log     # Log file path
 
 ### Phase 1: Critical Fixes (Blocking Issues)
 
-#### 1.1 Fix Kalshi API Integration (src/exchanges/kalshi/client.py:22)
-**Status**: Returns 0 markets despite working code structure
-- [ ] Debug actual API response from Kalshi
-- [ ] Verify correct API endpoint (currently using elections-specific endpoint)
-- [ ] Test with valid API key (currently accepts empty string)
-- [ ] Check if authentication is required for market data
-- [ ] May need to use `/markets` instead of `/events`
-- [ ] Update parser to match actual response structure
+#### 1.1 Fix Kalshi API Integration ✅ FIXED (October 31, 2025)
+**Status**: ✅ Working - Returns 200+ markets with pagination support
+- [x] Debug actual API response from Kalshi
+- [x] Verify correct API endpoint (using `/markets` instead of `/events`)
+- [x] Update parser to match actual response structure
+- [x] Fix price calculations (use mid-price of bid/ask)
+- [x] Fix volume calculations (convert contracts to dollars)
+- [x] Test end-to-end integration
+- [x] Implement cursor-based pagination to fetch all markets (not just first page)
+
+See `docs/KALSHI_FIX.md` for complete details.
 
 #### 1.2 Implement Position Creation (src/main.py:182-184)
 **Status**: TODO comment, not implemented
@@ -510,22 +522,21 @@ LOG_FILE=logs/arbitrage.log     # Log file path
 ## 🎯 Priority Summary
 
 **🔥 BLOCKING (Do First)**:
-1. Fix Kalshi API (0 markets returned)
-2. Implement position creation from orders
-3. Implement position closing logic
+1. Implement position creation from orders
+2. Implement position closing logic
 
 **⚠️ HIGH PRIORITY (Do Next)**:
-4. Real order placement implementation
-5. Real-time price updates for positions
-6. Rewrite test suite
+3. Real order placement implementation
+4. Real-time price updates for positions
+5. Rewrite test suite
 
 **📊 MEDIUM PRIORITY (Important)**:
-7. Fix API server methods
-8. Implement Telegram alerts
-9. Add SQL database persistence
+6. Fix API server methods
+7. Implement Telegram alerts
+8. Add SQL database persistence
 
 **✨ NICE TO HAVE (Future)**:
-10. Order book analysis
-11. Advanced risk management
-12. Backtesting framework
-13. Additional exchanges
+9. Order book analysis
+10. Advanced risk management
+11. Backtesting framework
+12. Additional exchanges

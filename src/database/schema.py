@@ -12,7 +12,48 @@ from ..utils import get_logger
 logger = get_logger(__name__)
 
 
-# Schema definitions for future SQL implementation
+# Schema definitions for SQL implementation
+
+# Markets table - stores all markets from both exchanges
+MARKETS_TABLE = """
+CREATE TABLE IF NOT EXISTS markets (
+    id TEXT PRIMARY KEY,
+    exchange TEXT NOT NULL,
+    title TEXT NOT NULL,
+    yes_price REAL NOT NULL,
+    no_price REAL NOT NULL,
+    volume REAL DEFAULT 0.0,
+    liquidity REAL DEFAULT 0.0,
+    status TEXT NOT NULL,
+    category TEXT,
+    expiry TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_markets_exchange ON markets(exchange);
+CREATE INDEX IF NOT EXISTS idx_markets_status ON markets(status);
+CREATE INDEX IF NOT EXISTS idx_markets_updated ON markets(updated_at);
+"""
+
+# Market matches table - stores pairs of equivalent markets
+MARKET_MATCHES_TABLE = """
+CREATE TABLE IF NOT EXISTS market_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kalshi_market_id TEXT NOT NULL,
+    polymarket_market_id TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    kalshi_title TEXT NOT NULL,
+    polymarket_title TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE(kalshi_market_id, polymarket_market_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_matches_confidence ON market_matches(confidence_score);
+CREATE INDEX IF NOT EXISTS idx_matches_created ON market_matches(created_at);
+"""
+
+# Opportunities table
 OPPORTUNITIES_TABLE = """
 CREATE TABLE IF NOT EXISTS opportunities (
     id TEXT PRIMARY KEY,
@@ -84,25 +125,41 @@ def init_database(db_url: Optional[str] = None):
     Initialize database with schema.
 
     Args:
-        db_url: Database connection URL (for future SQL implementation)
+        db_url: Database connection URL (SQLite path)
     """
-    logger.info("Database initialization (currently in-memory mode)")
+    import sqlite3
+    import os
 
-    # For now, we're using in-memory storage via Repository class
-    # When we migrate to SQL, this function will:
-    # 1. Connect to database
-    # 2. Create tables if they don't exist
-    # 3. Run migrations
+    # Use SQLite by default
+    db_path = db_url or 'quantshit.db'
 
-    # Example (for future SQL implementation):
-    # import sqlite3
-    # conn = sqlite3.connect(db_url or 'quantshit.db')
-    # cursor = conn.cursor()
-    # cursor.executescript(OPPORTUNITIES_TABLE)
-    # cursor.executescript(ORDERS_TABLE)
-    # cursor.executescript(POSITIONS_TABLE)
-    # conn.commit()
-    # conn.close()
+    # Create directory if needed
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+
+    logger.info(f"Initializing database at {db_path}")
+
+    # Connect and create tables
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        # Create all tables
+        cursor.executescript(MARKETS_TABLE)
+        cursor.executescript(MARKET_MATCHES_TABLE)
+        cursor.executescript(OPPORTUNITIES_TABLE)
+        cursor.executescript(ORDERS_TABLE)
+        cursor.executescript(POSITIONS_TABLE)
+
+        conn.commit()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
     logger.info("Database ready")
 

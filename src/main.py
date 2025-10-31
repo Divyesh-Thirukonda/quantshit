@@ -23,7 +23,7 @@ from .services.execution import Validator, Executor
 from .services.monitoring import Tracker, Alerter
 
 # Strategy
-from .strategies import SimpleArbitrageStrategy
+from .strategies import SimpleArbitrageStrategy, SimpleArbitrageConfig
 
 # Exchange clients
 from .exchanges import KalshiClient, PolymarketClient
@@ -82,11 +82,16 @@ class ArbitrageBot:
         self.tracker = Tracker()
         self.alerter = Alerter(enabled=settings.ENABLE_ALERTS)
 
-        # Initialize strategy
-        self.strategy = SimpleArbitrageStrategy(
+        # Initialize strategy with config
+        # Strategy owns its trading parameters (min_volume, min_spread, etc.)
+        strategy_config = SimpleArbitrageConfig(
+            min_volume=1000.0,  # Can be overridden by user
             min_profit_pct=constants.MIN_PROFIT_THRESHOLD,
-            min_confidence=constants.MIN_CONFIDENCE_SCORE
+            min_confidence=constants.MIN_CONFIDENCE_SCORE,
+            max_position_size=constants.MAX_POSITION_SIZE,
+            min_position_size=constants.MIN_POSITION_SIZE
         )
+        self.strategy = SimpleArbitrageStrategy(config=strategy_config)
 
         # Tracking
         self.cycle_count = 0
@@ -214,15 +219,19 @@ class ArbitrageBot:
     def _fetch_markets(self) -> tuple[List[Market], List[Market]]:
         """
         Fetch markets from both exchanges using the exchange clients.
+        Uses min_volume from the strategy configuration.
 
         Returns:
             Tuple of (kalshi_markets, polymarket_markets)
         """
+        # Get min_volume from strategy config (strategy owns trading parameters)
+        min_volume = self.strategy.config.min_volume
+
         # Fetch from Kalshi
-        kalshi_markets = self.kalshi_client.get_markets(min_volume=settings.MIN_VOLUME)
+        kalshi_markets = self.kalshi_client.get_markets(min_volume=min_volume)
 
         # Fetch from Polymarket
-        polymarket_markets = self.polymarket_client.get_markets(min_volume=settings.MIN_VOLUME)
+        polymarket_markets = self.polymarket_client.get_markets(min_volume=min_volume)
 
         return kalshi_markets, polymarket_markets
 
