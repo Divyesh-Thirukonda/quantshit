@@ -63,7 +63,7 @@ def get_api_response(path, method='GET', body=None):
         elif path == '/api/scan':
             try:
                 # Import and initialize trading system for this request
-                from src.coordinators.trading_orchestrator import TradingOrchestrator
+                from src.main import ArbitrageBot
 
                 # Parse request body if this is a POST
                 scan_config = {}
@@ -73,36 +73,35 @@ def get_api_response(path, method='GET', body=None):
                     except:
                         pass
 
-                # Run a single scan cycle
-                bot = TradingOrchestrator()
+                # Initialize bot
+                bot = ArbitrageBot()
 
-                # Collect market data
-                markets_data = bot.data_collector.collect_market_data(bot.min_volume)
+                # Fetch markets
+                kalshi_markets, polymarket_markets = bot._fetch_markets()
 
-                # Find opportunities using strategy
-                opportunities = bot.strategy.find_opportunities(markets_data)
+                # Find matches and score opportunities
+                matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
+                opportunities = bot.scorer.score_opportunities(matched_pairs)
 
                 # Filter by minimum edge if specified
                 min_edge = scan_config.get('min_edge', 0.05)
-                filtered_ops = [op for op in opportunities if hasattr(op, 'spread') and op.spread >= min_edge]
+                filtered_ops = [op for op in opportunities if op.expected_profit_pct >= min_edge]
 
                 # Format opportunities for dashboard
                 formatted_ops = []
                 for i, opp in enumerate(filtered_ops[:10]):
                     try:
-                        if hasattr(opp, 'buy_market'):
-                            formatted_ops.append({
-                                "id": f"arb_{i}",
-                                "question": str(opp.outcome) if hasattr(opp, 'outcome') else "Unknown",
-                                "yes_venue": opp.buy_market.get('platform', 'unknown'),
-                                "no_venue": opp.sell_market.get('platform', 'unknown'),
-                                "yes_price": f"${float(opp.buy_price):.3f}",
-                                "no_price": f"${float(opp.sell_price):.3f}",
-                                "size": "$250",
-                                "edge_bps": f"{int(float(opp.spread) * 10000)}",
-                                "cost": "$100.00",
-                                "profit": f"${float(opp.expected_profit_per_share * 100):.2f}"
-                            })
+                        formatted_ops.append({
+                            "id": f"arb_{i}",
+                            "question": opp.outcome.value,
+                            "market_title": opp.market_kalshi.title[:60],
+                            "kalshi_price": f"${opp.kalshi_price:.3f}",
+                            "polymarket_price": f"${opp.polymarket_price:.3f}",
+                            "size": "$250",
+                            "edge_bps": f"{int(opp.expected_profit_pct * 10000)}",
+                            "spread": f"{opp.expected_profit_pct:.2%}",
+                            "profit": f"${opp.expected_profit:.2f}"
+                        })
                     except Exception as e:
                         print(f"Error formatting opportunity: {e}")
                         continue
@@ -111,7 +110,8 @@ def get_api_response(path, method='GET', body=None):
                     'success': True,
                     'opportunities': formatted_ops,
                     'meta': {
-                        'scanned_markets': sum(len(m) for m in markets_data.values()),
+                        'scanned_markets': len(kalshi_markets) + len(polymarket_markets),
+                        'matched_pairs': len(matched_pairs),
                         'opportunities_found': len(filtered_ops),
                         'timestamp': datetime.now().isoformat()
                     }
@@ -133,18 +133,25 @@ def get_api_response(path, method='GET', body=None):
                 
         elif path == '/api/markets':
             try:
-                # Import and get platforms
-                from src.coordinators.trading_orchestrator import TradingOrchestrator
-                
-                bot = TradingOrchestrator()
-                platforms = bot.get_available_platforms()
-                
+                # Import and get markets
+                from src.main import ArbitrageBot
+
+                bot = ArbitrageBot()
+                kalshi_markets, polymarket_markets = bot._fetch_markets()
+
                 return {
-                    'platforms': platforms,
+                    'kalshi': {
+                        'market_count': len(kalshi_markets),
+                        'status': 'connected'
+                    },
+                    'polymarket': {
+                        'market_count': len(polymarket_markets),
+                        'status': 'connected'
+                    },
                     'timestamp': datetime.now().isoformat(),
                     'status': 'success'
                 }
-                
+
             except Exception as e:
                 return {
                     'message': 'Failed to get markets',
@@ -154,11 +161,19 @@ def get_api_response(path, method='GET', body=None):
                 
         elif path == '/api/portfolio':
             try:
-                # Import and get portfolio
-                from src.coordinators.trading_orchestrator import TradingOrchestrator
+                # Import and get portfolio stats
+                from src.main import ArbitrageBot
 
-                bot = TradingOrchestrator()
-                portfolio = bot.get_portfolio_summary()
+                bot = ArbitrageBot()
+                tracker_summary = bot.tracker.get_summary()
+                stats = bot.repository.get_stats()
+
+                portfolio = {
+                    'total_trades': stats.get('total_trades', 0),
+                    'unrealized_pnl': tracker_summary.get('total_unrealized_pnl', 0),
+                    'realized_pnl': tracker_summary.get('total_realized_pnl', 0),
+                    'open_positions': len(bot.repository.get_positions())
+                }
 
                 return {
                     'portfolio': portfolio,
@@ -175,32 +190,37 @@ def get_api_response(path, method='GET', body=None):
 
         elif path == '/api/dashboard/stats':
             try:
-                from src.coordinators.trading_orchestrator import TradingOrchestrator
-                from src.collectors import MarketDataCollector
+                from src.main import ArbitrageBot
 
-                bot = TradingOrchestrator()
+                bot = ArbitrageBot()
 
-                # Collect market data
-                markets_data = bot.data_collector.collect_market_data(bot.min_volume)
-                total_markets = sum(len(markets) for markets in markets_data.values())
+                # Fetch markets
+                kalshi_markets, polymarket_markets = bot._fetch_markets()
+                total_markets = len(kalshi_markets) + len(polymarket_markets)
 
                 # Find opportunities
-                opportunities = bot.strategy.find_opportunities(markets_data)
+                matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
+                opportunities = bot.scorer.score_opportunities(matched_pairs)
 
                 # Get portfolio info
-                portfolio = bot.get_portfolio_summary()
+                tracker_summary = bot.tracker.get_summary()
+                stats = bot.repository.get_stats()
 
                 return {
                     'success': True,
                     'stats': {
                         'total_markets_scanned': total_markets,
                         'opportunities_found': len(opportunities),
-                        'platforms_active': len(markets_data.keys()),
-                        'portfolio_value': portfolio.get('total_portfolio_value', 20000),
+                        'platforms_active': 2,
+                        'total_trades': stats.get('total_trades', 0),
+                        'unrealized_pnl': tracker_summary.get('total_unrealized_pnl', 0),
+                        'realized_pnl': tracker_summary.get('total_realized_pnl', 0),
                         'last_updated': datetime.now().isoformat()
                     }
                 }
             except Exception as e:
+                import traceback
+                print(f"Stats error: {traceback.format_exc()}")
                 return {
                     'success': False,
                     'error': str(e),
@@ -208,7 +228,9 @@ def get_api_response(path, method='GET', body=None):
                         'total_markets_scanned': 0,
                         'opportunities_found': 0,
                         'platforms_active': 0,
-                        'portfolio_value': 20000,
+                        'total_trades': 0,
+                        'unrealized_pnl': 0,
+                        'realized_pnl': 0,
                         'last_updated': datetime.now().isoformat()
                     }
                 }

@@ -37,7 +37,7 @@ class PolymarketClient(BaseExchangeClient):
 
     def get_markets(self, min_volume: float = 0) -> List[Market]:
         """
-        Fetch available markets from Polymarket.
+        Fetch available markets from Polymarket using cursor pagination.
 
         Args:
             min_volume: Minimum volume filter (in dollars)
@@ -48,39 +48,72 @@ class PolymarketClient(BaseExchangeClient):
         try:
             logger.info(f"Fetching markets from Polymarket (min_volume: ${min_volume})")
 
+            markets = []
+            next_cursor = None
+            page = 1
+            total_fetched = 0
+
             # Use Gamma API for market data (public endpoint)
             url = f"{self.GAMMA_URL}/markets"
-            params = {
-                'limit': 100,
-                'active': 'true'
-            }
 
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            # Paginate through all available markets
+            while True:
+                params = {
+                    'limit': 100,  # Max per page
+                    'active': 'true'
+                }
 
-            markets = []
+                # Add cursor for pagination if available
+                if next_cursor:
+                    params['next_cursor'] = next_cursor
 
-            # Polymarket returns an array of markets
-            market_list = data if isinstance(data, list) else data.get('markets', [])
+                logger.debug(f"Fetching Polymarket page {page} (cursor: {next_cursor or 'initial'})")
 
-            for market_data in market_list:
-                try:
-                    market = parse_market(market_data)
-                    if market and market.volume >= min_volume:
-                        markets.append(market)
-                except Exception as e:
-                    logger.warning(f"Failed to parse Polymarket market: {e}")
-                    continue
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
 
-            logger.info(f"Fetched {len(markets)} markets from Polymarket")
+                # Polymarket returns an array of markets or dict with 'markets' key
+                market_list = data if isinstance(data, list) else data.get('markets', [])
+                total_fetched += len(market_list)
+
+                logger.debug(f"Page {page}: Received {len(market_list)} markets")
+
+                # Parse markets from this page
+                for market_data in market_list:
+                    try:
+                        market = parse_market(market_data)
+                        if market and market.volume >= min_volume:
+                            markets.append(market)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse Polymarket market: {e}")
+                        continue
+
+                # Check for next page cursor
+                if isinstance(data, dict):
+                    next_cursor = data.get('next_cursor')
+                else:
+                    next_cursor = None
+
+                # Break if no more pages or no markets returned
+                if not next_cursor or len(market_list) == 0:
+                    break
+
+                page += 1
+
+                # Safety limit to prevent infinite loops (adjust as needed)
+                if page > 100:
+                    logger.warning(f"Reached maximum page limit (100 pages, {total_fetched} total markets)")
+                    break
+
+            logger.info(f"Fetched {len(markets)} markets from Polymarket across {page} pages (total raw: {total_fetched})")
             return markets
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Polymarket API request failed: {e}")
             return []
         except Exception as e:
-            logger.error(f"Unexpected error fetching Polymarket markets: {e}")
+            logger.error(f"Unexpected error fetching Polymarket markets: {e}", exc_info=True)
             return []
 
     def place_order(

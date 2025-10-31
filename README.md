@@ -15,6 +15,7 @@ python main.py
 ## Current Status
 
 **✅ Working:**
+
 - Clean architecture implemented with clear separation of concerns
 - Exchange clients for Kalshi and Polymarket (fetches real market data)
 - Market matching algorithm with fuzzy string matching
@@ -25,6 +26,7 @@ python main.py
 - FastAPI server with dashboard
 
 **🚧 In Progress / Known Issues:**
+
 - Kalshi API returns 0 markets (endpoint/auth issue - see `src/exchanges/kalshi/client.py:22`)
 - Position creation from executed orders not implemented (`src/main.py:182-184`)
 - Position closing logic not implemented (`src/main.py:242-245`)
@@ -43,16 +45,16 @@ Quantshit follows **clean architecture** with strict dependency rules:
 │         Outer Layer (Frameworks)            │
 │  main.py, api.py, exchanges/, database/     │
 │                                             │
-│    ┌─────────────────────────────────┐     │
-│    │   Middle Layer (Services)       │     │
-│    │  matching/, execution/,         │     │
-│    │  monitoring/, strategies/       │     │
-│    │                                 │     │
-│    │   ┌─────────────────────┐       │     │
-│    │   │  Inner Layer (Core) │       │     │
-│    │   │  models/, types.py  │       │     │
-│    │   └─────────────────────┘       │     │
-│    └─────────────────────────────────┘     │
+│    ┌─────────────────────────────────┐      │
+│    │   Middle Layer (Services)       │      │
+│    │  matching/, execution/,         │      │
+│    │  monitoring/, strategies/       │      │
+│    │                                 │      │
+│    │   ┌─────────────────────┐       │      │
+│    │   │  Inner Layer (Core) │       │      │
+│    │   │  models/, types.py  │       │      │
+│    │   └─────────────────────┘       │      │
+│    └─────────────────────────────────┘      │
 └─────────────────────────────────────────────┘
 ```
 
@@ -154,6 +156,7 @@ ArbitrageBot.run_cycle():
 ### Market Matching Algorithm
 
 Uses **fuzzy string matching** to find equivalent markets:
+
 - Normalizes titles (lowercase, remove punctuation)
 - Filters stop words ("the", "a", "will", etc.)
 - Calculates Jaccard similarity (word overlap)
@@ -163,6 +166,7 @@ Uses **fuzzy string matching** to find equivalent markets:
 ### Opportunity Scoring
 
 Calculates profit accounting for fees and slippage:
+
 ```python
 spread = |price_A - price_B|
 profit = spread - fee_A - fee_B - slippage
@@ -183,18 +187,17 @@ Environment variables in `.env`:
 KALSHI_API_KEY=your_key_here
 POLYMARKET_API_KEY=your_key_here
 
-# Trading Parameters
-MIN_VOLUME=1000              # Minimum market volume
-MIN_SPREAD=0.05              # Minimum profitable spread (5%)
+# System Configuration
 PAPER_TRADING=true           # Paper trading mode (default)
-
-# Monitoring
 ENABLE_ALERTS=false          # Telegram alerts
 LOG_LEVEL=INFO               # Logging verbosity
 LOG_FILE=quantshit.log       # Log file path
 ```
 
+**Note**: Trading parameters (min_volume, min_spread, profit thresholds, etc.) are now configured per-strategy in code at `src/strategies/config.py`, not via environment variables. This allows different strategies to have different parameters.
+
 Business constants in `src/config/constants.py`:
+
 ```python
 MIN_PROFIT_THRESHOLD = 0.02   # 2% minimum profit
 MAX_POSITION_SIZE = 1000      # Max contracts per position
@@ -220,6 +223,7 @@ python api.py  # Starts on http://localhost:8000
 ```
 
 **Available Endpoints:**
+
 - `GET /` - Dashboard UI
 - `POST /scan` - Scan for opportunities
 - `POST /execute` - Execute a trade
@@ -275,6 +279,7 @@ See `docs/TESTING.md` for test suite documentation.
 **Strategy Pattern:** Multiple strategies by extending `BaseStrategy`
 
 **Single Responsibility:** Each module has one job:
+
 - `Matcher`: Find equivalent markets
 - `Scorer`: Calculate profitability
 - `Validator`: Check if trade is safe
@@ -302,6 +307,7 @@ See `docs/TESTING.md` for test suite documentation.
 6. Submit PR
 
 **High Priority Areas:**
+
 - Fix Kalshi API integration (returns 0 markets)
 - Implement position creation/closing
 - Rewrite test suite for new architecture
@@ -311,7 +317,9 @@ See `docs/TESTING.md` for test suite documentation.
 ---
 
 **⚠️ Paper Trading Only:** System currently operates in simulation mode. Real trading requires:
+
 - Valid API keys for both exchanges
 - Implementation of real order placement logic
 - Thorough testing with small positions
 - Risk management review
+
