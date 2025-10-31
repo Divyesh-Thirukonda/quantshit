@@ -1,180 +1,341 @@
 """
-Tests for strategy components
+Comprehensive unit tests for trading strategies.
+Tests strategy logic, filtering, ranking, and position sizing.
 """
-from unittest.mock import MagicMock, patch
-from src.strategies.arbitrage import ArbitrageStrategy, get_strategy
-from src.types import Market, ArbitrageOpportunity, Platform, Outcome
+import pytest
+from datetime import datetime, timedelta
+from unittest.mock import Mock
+
+from src.types import Exchange, MarketStatus, Outcome
+from src.models import Market, Opportunity, Position, Order
+from src.strategies.simple_arb import SimpleArbitrageStrategy
+from src.config import constants
 
 
-class TestArbitrageStrategy:
-    """Test the arbitrage strategy"""
-    
+@pytest.mark.unit
+class TestSimpleArbitrageStrategy:
+    """Test Simple Arbitrage Strategy"""
+
     def test_strategy_initialization(self):
-        """Test strategy initialization with parameters"""
-        strategy = ArbitrageStrategy(min_spread=0.03)
-        
-        assert strategy.name == "Arbitrage Strategy"
-        assert strategy.min_spread == 0.03
-        assert strategy.use_planning is False
-    
-    def test_find_opportunities_single_platform(self, mock_market_data):
-        """Test that no opportunities are found with single platform"""
-        strategy = ArbitrageStrategy(min_spread=0.01)
-        
-        # Only one platform
-        single_platform_data = {'polymarket': mock_market_data['polymarket']}
-        
-        opportunities = strategy.find_opportunities(single_platform_data)
-        
-        assert len(opportunities) == 0
-    
-    def test_find_opportunities_with_arbitrage(self, mock_market_data):
-        """Test finding arbitrage opportunities between platforms"""
-        strategy = ArbitrageStrategy(min_spread=0.01)
-        
-        # Modify test data to create arbitrage opportunity
-        test_data = {
-            'polymarket': [
-                {
-                    'id': 'poly_1',
-                    'title': 'Will Trump win 2024',
-                    'yes_price': 0.40,  # Lower YES price
-                    'no_price': 0.60,
-                    'volume': 5000,
-                    'platform': 'polymarket'
-                }
-            ],
-            'kalshi': [
-                {
-                    'id': 'kalshi_1', 
-                    'title': 'Will Trump win 2024',
-                    'yes_price': 0.65,  # Higher YES price - arbitrage opportunity!
-                    'no_price': 0.35,
-                    'volume': 4000,
-                    'platform': 'kalshi'
-                }
-            ]
-        }
-        
-        opportunities = strategy.find_opportunities(test_data)
-        
-        # Should find at least one opportunity
-        assert len(opportunities) > 0
-        
-        # Check first opportunity
-        opp = opportunities[0]
-        assert isinstance(opp, ArbitrageOpportunity)
-        assert opp.spread >= strategy.min_spread
-        assert opp.expected_profit_per_share > 0
-    
-    def test_find_opportunities_no_matches(self):
-        """Test no opportunities when markets don't match"""
-        strategy = ArbitrageStrategy(min_spread=0.01)
-        
-        # Different market titles - no matches
-        test_data = {
-            'polymarket': [
-                {
-                    'id': 'poly_1',
-                    'title': 'Will Trump win 2024',
-                    'yes_price': 0.50,
-                    'no_price': 0.50,
-                    'volume': 5000,
-                    'platform': 'polymarket'
-                }
-            ],
-            'kalshi': [
-                {
-                    'id': 'kalshi_1',
-                    'title': 'Will Biden win 2024',  # Different title
-                    'yes_price': 0.50,
-                    'no_price': 0.50,
-                    'volume': 4000,
-                    'platform': 'kalshi'
-                }
-            ]
-        }
-        
-        opportunities = strategy.find_opportunities(test_data)
-        
-        assert len(opportunities) == 0
-    
-    def test_are_markets_similar(self):
-        """Test market similarity detection"""
-        strategy = ArbitrageStrategy()
-        
-        # Similar titles should match (need >50% word overlap after removing stop words)
-        assert strategy._are_markets_similar(
-            "Trump win 2024 election",
-            "Trump wins 2024 election"
-        ) is True
-        
-        # Different titles should not match
-        assert strategy._are_markets_similar(
-            "Will Trump win 2024",
-            "Will Biden win 2024"
-        ) is False
-        
-        # Very different titles should not match
-        assert strategy._are_markets_similar(
-            "Stock market goes up",
-            "Trump wins election"
-        ) is False
-    
-    def test_calculate_arbitrage(self):
-        """Test arbitrage calculation between two markets"""
-        strategy = ArbitrageStrategy(min_spread=0.01)
-        
-        market1 = {
-            'id': 'market1',
-            'title': 'Test Market',
-            'yes_price': 0.40,
-            'no_price': 0.60,
-            'volume': 5000,
-            'platform': 'polymarket'
-        }
-        
-        market2 = {
-            'id': 'market2',
-            'title': 'Test Market',
-            'yes_price': 0.65,  # Higher YES price
-            'no_price': 0.35,   # Lower NO price
-            'volume': 4000,
-            'platform': 'kalshi'
-        }
-        
-        opportunities = strategy._calculate_arbitrage(market1, market2)
-        
-        # Should find both YES and NO arbitrage
-        assert len(opportunities) == 2
-        
-        # Check YES arbitrage
-        yes_opp = next(opp for opp in opportunities if opp['outcome'] == 'YES')
-        assert yes_opp['buy_price'] == 0.40  # Buy from market1
-        assert yes_opp['sell_price'] == 0.65  # Sell on market2
-        assert yes_opp['expected_profit'] == 0.25
-        
-        # Check NO arbitrage
-        no_opp = next(opp for opp in opportunities if opp['outcome'] == 'NO')
-        assert no_opp['buy_price'] == 0.35  # Buy from market2
-        assert no_opp['sell_price'] == 0.60  # Sell on market1
-        assert no_opp['expected_profit'] == 0.25
+        """Test strategy initializes with correct parameters"""
+        strategy = SimpleArbitrageStrategy(min_profit_pct=0.03, min_confidence=0.7)
+        assert strategy.name == "Simple Arbitrage"
+        assert strategy.min_profit_pct == 0.03
+        assert strategy.min_confidence == 0.7
 
+    def test_strategy_initialization_defaults(self):
+        """Test strategy uses default parameters from constants"""
+        strategy = SimpleArbitrageStrategy()
+        assert strategy.min_profit_pct == constants.MIN_PROFIT_THRESHOLD
+        assert strategy.min_confidence == constants.MIN_CONFIDENCE_SCORE
 
-class TestStrategyFactory:
-    """Test strategy factory function"""
-    
-    def test_get_strategy_arbitrage(self):
-        """Test getting arbitrage strategy from factory"""
-        strategy = get_strategy('arbitrage', min_spread=0.02)
-        
-        assert isinstance(strategy, ArbitrageStrategy)
-        assert strategy.min_spread == 0.02
-    
-    def test_get_strategy_invalid(self):
-        """Test getting invalid strategy raises error"""
-        try:
-            get_strategy('nonexistent')
-            assert False, "Should have raised exception"
-        except ValueError as e:
-            assert "Unsupported strategy" in str(e)
+    def test_filter_opportunities_passes_profitable(self, sample_opportunity):
+        """Test that profitable opportunities pass filtering"""
+        strategy = SimpleArbitrageStrategy()
+        opportunities = [sample_opportunity]
+
+        filtered = strategy.filter_opportunities(opportunities)
+
+        assert len(filtered) == 1
+        assert filtered[0] == sample_opportunity
+
+    def test_filter_opportunities_rejects_low_profit(self, sample_kalshi_market, sample_polymarket_market):
+        """Test that low profit opportunities are filtered out"""
+        low_profit_opp = Opportunity(
+            market_kalshi=sample_kalshi_market,
+            market_polymarket=sample_polymarket_market,
+            outcome=Outcome.YES,
+            spread=0.01,
+            expected_profit=10.0,
+            expected_profit_pct=0.005,  # 0.5%, below threshold
+            confidence_score=0.8,
+            recommended_size=100,
+            max_size=500
+        )
+
+        strategy = SimpleArbitrageStrategy()
+        filtered = strategy.filter_opportunities([low_profit_opp])
+
+        assert len(filtered) == 0
+
+    def test_filter_opportunities_rejects_low_confidence(self, low_confidence_opportunity):
+        """Test that low confidence opportunities are filtered out"""
+        strategy = SimpleArbitrageStrategy()
+        filtered = strategy.filter_opportunities([low_confidence_opportunity])
+
+        assert len(filtered) == 0
+
+    def test_filter_opportunities_rejects_expired(self, expired_opportunity):
+        """Test that expired opportunities are filtered out"""
+        strategy = SimpleArbitrageStrategy()
+        filtered = strategy.filter_opportunities([expired_opportunity])
+
+        assert len(filtered) == 0
+
+    def test_filter_opportunities_rejects_closed_markets(self, sample_opportunity, closed_market):
+        """Test that opportunities with closed markets are filtered out"""
+        sample_opportunity.market_kalshi = closed_market
+
+        strategy = SimpleArbitrageStrategy()
+        filtered = strategy.filter_opportunities([sample_opportunity])
+
+        assert len(filtered) == 0
+
+    def test_filter_opportunities_multiple(self):
+        """Test filtering multiple opportunities"""
+        kalshi_market = Market(
+            id="k1", exchange=Exchange.KALSHI, title="Test",
+            yes_price=0.40, no_price=0.60,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+        poly_market = Market(
+            id="p1", exchange=Exchange.POLYMARKET, title="Test",
+            yes_price=0.50, no_price=0.50,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+
+        good_opp = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.10,
+            expected_profit=200.0,
+            expected_profit_pct=0.05,
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        bad_opp = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.02,
+            expected_profit=20.0,
+            expected_profit_pct=0.01,  # Below threshold
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        strategy = SimpleArbitrageStrategy()
+        filtered = strategy.filter_opportunities([good_opp, bad_opp])
+
+        assert len(filtered) == 1
+        assert filtered[0] == good_opp
+
+    def test_rank_opportunities_by_profit_pct(self):
+        """Test that opportunities are ranked by profit percentage"""
+        kalshi_market = Market(
+            id="k1", exchange=Exchange.KALSHI, title="Test",
+            yes_price=0.40, no_price=0.60,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+        poly_market = Market(
+            id="p1", exchange=Exchange.POLYMARKET, title="Test",
+            yes_price=0.50, no_price=0.50,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+
+        opp1 = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.05,
+            expected_profit=100.0,
+            expected_profit_pct=0.03,  # 3%
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        opp2 = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.10,
+            expected_profit=200.0,
+            expected_profit_pct=0.05,  # 5% - higher
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        strategy = SimpleArbitrageStrategy()
+        ranked = strategy.rank_opportunities([opp1, opp2])
+
+        # opp2 should be first (higher profit %)
+        assert ranked[0] == opp2
+        assert ranked[1] == opp1
+
+    def test_rank_opportunities_empty_list(self):
+        """Test ranking empty list returns empty list"""
+        strategy = SimpleArbitrageStrategy()
+        ranked = strategy.rank_opportunities([])
+        assert ranked == []
+
+    def test_calculate_position_size_uses_recommended(self, sample_opportunity):
+        """Test position size calculation uses recommended size"""
+        strategy = SimpleArbitrageStrategy()
+        size = strategy.calculate_position_size(
+            opportunity=sample_opportunity,
+            available_capital=10000.0
+        )
+
+        # Should use recommended size from opportunity
+        assert size == sample_opportunity.recommended_size
+
+    def test_calculate_position_size_respects_capital_limit(self, sample_opportunity):
+        """Test position size is reduced when capital is insufficient"""
+        strategy = SimpleArbitrageStrategy()
+        size = strategy.calculate_position_size(
+            opportunity=sample_opportunity,
+            available_capital=20.0  # Very low capital
+        )
+
+        # Size should be reduced to fit capital
+        capital_required = size * (sample_opportunity.buy_price or 0.5)
+        assert capital_required <= 20.0
+
+    def test_calculate_position_size_respects_min_limit(self, sample_opportunity):
+        """Test position size respects minimum limit"""
+        strategy = SimpleArbitrageStrategy()
+        size = strategy.calculate_position_size(
+            opportunity=sample_opportunity,
+            available_capital=1.0  # Tiny capital
+        )
+
+        # Should be at least MIN_POSITION_SIZE
+        assert size >= constants.MIN_POSITION_SIZE
+
+    def test_calculate_position_size_respects_max_limit(self):
+        """Test position size respects maximum limit"""
+        kalshi_market = Market(
+            id="k1", exchange=Exchange.KALSHI, title="Test",
+            yes_price=0.01, no_price=0.99,  # Very cheap
+            volume=1000000.0, liquidity=500000.0, status=MarketStatus.OPEN
+        )
+        poly_market = Market(
+            id="p1", exchange=Exchange.POLYMARKET, title="Test",
+            yes_price=0.05, no_price=0.95,
+            volume=1000000.0, liquidity=500000.0, status=MarketStatus.OPEN
+        )
+
+        huge_opp = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.04,
+            expected_profit=10000.0,
+            expected_profit_pct=0.05,
+            confidence_score=0.9,
+            recommended_size=100000,  # Very large
+            max_size=500000
+        )
+
+        strategy = SimpleArbitrageStrategy()
+        size = strategy.calculate_position_size(
+            opportunity=huge_opp,
+            available_capital=1000000.0
+        )
+
+        # Should not exceed MAX_POSITION_SIZE
+        assert size <= constants.MAX_POSITION_SIZE
+
+    def test_should_close_position_take_profit(self):
+        """Test that position is closed at take profit target"""
+        # Create mock position with high profit
+        position = Mock()
+        position.position_id = "test_pos"
+        position.unrealized_pnl_pct = 10.5  # Above 10% target
+
+        strategy = SimpleArbitrageStrategy()
+        should_close = strategy.should_close_position(position)
+
+        assert should_close is True
+
+    def test_should_close_position_stop_loss(self):
+        """Test that position is closed at stop loss"""
+        # Create mock position with loss
+        position = Mock()
+        position.position_id = "test_pos"
+        position.unrealized_pnl_pct = -6.0  # Below -5% stop loss
+
+        strategy = SimpleArbitrageStrategy()
+        should_close = strategy.should_close_position(position)
+
+        assert should_close is True
+
+    def test_should_close_position_partial_profit(self):
+        """Test that position is closed at partial profit target"""
+        # Create mock position with moderate profit
+        position = Mock()
+        position.position_id = "test_pos"
+        position.unrealized_pnl_pct = 5.5  # Above 5% (50% of take profit)
+
+        strategy = SimpleArbitrageStrategy()
+        should_close = strategy.should_close_position(position)
+
+        assert should_close is True
+
+    def test_should_close_position_no_trigger(self):
+        """Test that position is not closed when no conditions met"""
+        # Create mock position with small profit
+        position = Mock()
+        position.position_id = "test_pos"
+        position.unrealized_pnl_pct = 2.0  # Small profit, no trigger
+
+        strategy = SimpleArbitrageStrategy()
+        should_close = strategy.should_close_position(position)
+
+        assert should_close is False
+
+    def test_select_best_opportunity_from_list(self):
+        """Test selecting best opportunity from ranked list"""
+        kalshi_market = Market(
+            id="k1", exchange=Exchange.KALSHI, title="Test",
+            yes_price=0.40, no_price=0.60,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+        poly_market = Market(
+            id="p1", exchange=Exchange.POLYMARKET, title="Test",
+            yes_price=0.50, no_price=0.50,
+            volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
+        )
+
+        opp1 = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.05,
+            expected_profit=100.0,
+            expected_profit_pct=0.03,
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        opp2 = Opportunity(
+            market_kalshi=kalshi_market,
+            market_polymarket=poly_market,
+            outcome=Outcome.YES,
+            spread=0.10,
+            expected_profit=200.0,
+            expected_profit_pct=0.05,  # Higher
+            confidence_score=0.9,
+            recommended_size=100,
+            max_size=500
+        )
+
+        strategy = SimpleArbitrageStrategy()
+        best = strategy.select_best_opportunity([opp1, opp2])
+
+        # Should select opp2 (higher profit)
+        assert best == opp2
+
+    def test_select_best_opportunity_empty_list(self):
+        """Test selecting from empty list returns None"""
+        strategy = SimpleArbitrageStrategy()
+        best = strategy.select_best_opportunity([])
+
+        assert best is None
