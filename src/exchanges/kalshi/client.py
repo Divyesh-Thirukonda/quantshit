@@ -3,14 +3,15 @@ Kalshi API client.
 Fetches market data and places orders on Kalshi prediction market.
 """
 
-import requests
-from typing import List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List
 
-from ..base import BaseExchangeClient
+import requests
+
 from ...models import Market, Order
-from ...types import Exchange, OrderSide, OrderStatus, MarketStatus
+from ...types import Exchange, MarketStatus, OrderSide, OrderStatus
 from ...utils import get_logger
+from ..base import BaseExchangeClient
 from .parser import parse_market, parse_order
 
 logger = get_logger(__name__)
@@ -56,25 +57,26 @@ class KalshiClient(BaseExchangeClient):
 
             # Paginate through all available markets
             while True:
-                params = {
-                    'status': 'open',
-                    'limit': 200  # Max per page
-                }
+                params = {"status": "open", "limit": 1000}  # Max per page
 
                 # Add cursor for pagination if available
                 if cursor:
-                    params['cursor'] = cursor
+                    params["cursor"] = cursor
 
-                logger.debug(f"Fetching Kalshi page {page} (cursor: {cursor or 'initial'})")
+                logger.debug(
+                    f"Fetching Kalshi page {page} (cursor: {cursor or 'initial'})"
+                )
 
                 response = self.session.get(url, params=params, timeout=10)
                 response.raise_for_status()
                 data = response.json()
 
-                market_list = data.get('markets', [])
+                market_list = data.get("markets", [])
                 total_fetched += len(market_list)
 
-                logger.debug(f"Page {page}: Received {len(market_list)} markets from Kalshi API")
+                logger.debug(
+                    f"Page {page}: Received {len(market_list)} markets from Kalshi API"
+                )
 
                 # Parse markets from this page
                 for market_data in market_list:
@@ -87,7 +89,7 @@ class KalshiClient(BaseExchangeClient):
                         continue
 
                 # Check for next page cursor
-                cursor = data.get('cursor')
+                cursor = data.get("cursor")
 
                 # Break if no more pages or no markets returned
                 if not cursor or len(market_list) == 0:
@@ -95,28 +97,22 @@ class KalshiClient(BaseExchangeClient):
 
                 page += 1
 
-                # Safety limit to prevent infinite loops (adjust as needed)
-                if page > 50:
-                    logger.warning(f"Reached maximum page limit (50 pages, {total_fetched} total markets)")
-                    break
-
-            logger.info(f"Fetched {len(markets)} markets from Kalshi across {page} pages (total raw: {total_fetched}, after filters)")
+            logger.info(
+                f"Fetched {len(markets)} markets from Kalshi across {page} pages (total raw: {total_fetched}, after filters)"
+            )
             return markets
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Kalshi API request failed: {e}")
             return []
         except Exception as e:
-            logger.error(f"Unexpected error fetching Kalshi markets: {e}", exc_info=True)
+            logger.error(
+                f"Unexpected error fetching Kalshi markets: {e}", exc_info=True
+            )
             return []
 
-
     def place_order(
-        self,
-        market_id: str,
-        side: OrderSide,
-        quantity: int,
-        price: float
+        self, market_id: str, side: OrderSide, quantity: int, price: float
     ) -> Order:
         """
         Place an order on Kalshi.
@@ -131,7 +127,9 @@ class KalshiClient(BaseExchangeClient):
             Order object
         """
         try:
-            logger.info(f"Placing Kalshi order: {side.value} {quantity} contracts @ ${price}")
+            logger.info(
+                f"Placing Kalshi order: {side.value} {quantity} contracts @ ${price}"
+            )
 
             url = f"{self.BASE_URL}/orders"
 
@@ -139,11 +137,11 @@ class KalshiClient(BaseExchangeClient):
             price_cents = int(price * 100)
 
             payload = {
-                'ticker': market_id,
-                'action': 'buy' if side == OrderSide.BUY else 'sell',
-                'count': quantity,
-                'type': 'limit',
-                'yes_price' if side == OrderSide.BUY else 'no_price': price_cents
+                "ticker": market_id,
+                "action": "buy" if side == OrderSide.BUY else "sell",
+                "count": quantity,
+                "type": "limit",
+                "yes_price" if side == OrderSide.BUY else "no_price": price_cents,
             }
 
             response = self.session.post(url, json=payload, timeout=10)
@@ -165,7 +163,7 @@ class KalshiClient(BaseExchangeClient):
                 price=price,
                 status=OrderStatus.REJECTED,
                 filled_quantity=0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
@@ -185,7 +183,7 @@ class KalshiClient(BaseExchangeClient):
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get Kalshi order status: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Get Kalshi authentication headers"""
@@ -193,6 +191,6 @@ class KalshiClient(BaseExchangeClient):
             return {}
 
         return {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
         }

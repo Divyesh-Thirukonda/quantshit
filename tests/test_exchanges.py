@@ -7,13 +7,13 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 import requests
 
-from src.types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
+from src.types import Exchange, OrderSide, OrderStatus, MarketStatus
 from src.models import Market, Order
 from src.exchanges.base import BaseExchangeClient
 from src.exchanges.kalshi.client import KalshiClient
-from src.exchanges.kalshi.parser import KalshiParser
+from src.exchanges.kalshi import parser as kalshi_parser
 from src.exchanges.polymarket.client import PolymarketClient
-from src.exchanges.polymarket.parser import PolymarketParser
+from src.exchanges.polymarket import parser as polymarket_parser
 
 
 @pytest.mark.unit
@@ -48,14 +48,14 @@ class TestKalshiParser:
             "no_bid": 53,
             "no_ask": 55,
             "volume": 50000,
-            "open_interest": 25000,
-            "status": "open",
+            "notional_value": 100,
+            "liquidity_dollars": "$2500",
+            "status": "active",
             "close_time": (datetime.now() + timedelta(days=30)).isoformat(),
             "category": "test"
         }
 
-        parser = KalshiParser()
-        market = parser.parse_market(raw_market)
+        market = kalshi_parser.parse_market(raw_market)
 
         assert isinstance(market, Market)
         assert market.id == "KALSHI-TEST-001"
@@ -74,13 +74,13 @@ class TestKalshiParser:
             "no_bid": 50,
             "no_ask": 60,
             "volume": 1000,
-            "open_interest": 500,
-            "status": "open",
+            "notional_value": 100,
+            "liquidity_dollars": "$500",
+            "status": "active",
             "close_time": datetime.now().isoformat()
         }
 
-        parser = KalshiParser()
-        market = parser.parse_market(raw_market)
+        market = kalshi_parser.parse_market(raw_market)
 
         # Mid price = (bid + ask) / 2 / 100
         assert market.yes_price == 0.45  # (40 + 50) / 2 / 100
@@ -96,15 +96,16 @@ class TestKalshiParser:
             "no_bid": 53,
             "no_ask": 55,
             "volume": 50000,
-            "open_interest": 25000,
-            "status": "open",
+            "notional_value": 100,
+            "liquidity_dollars": "$25000",
+            "status": "active",
             "close_time": datetime.now().isoformat()
         }
 
-        parser = KalshiParser()
-        market = parser.parse_market(raw_market)
+        market = kalshi_parser.parse_market(raw_market)
 
-        assert market.volume == 50000.0
+        # Volume calculation: (volume * notional_value) / 100
+        assert market.volume == 50000.0  # (50000 * 100) / 100
         assert market.liquidity == 25000.0
 
     def test_parse_market_handles_closed_status(self):
@@ -117,13 +118,13 @@ class TestKalshiParser:
             "no_bid": 3,
             "no_ask": 5,
             "volume": 100000,
-            "open_interest": 0,
+            "notional_value": 100,
+            "liquidity_dollars": "$0",
             "status": "closed",
             "close_time": (datetime.now() - timedelta(days=1)).isoformat()
         }
 
-        parser = KalshiParser()
-        market = parser.parse_market(raw_market)
+        market = kalshi_parser.parse_market(raw_market)
 
         assert market.status == MarketStatus.CLOSED
         assert market.expiry < datetime.now()
@@ -139,15 +140,16 @@ class TestKalshiParser:
                 "no_bid": 53,
                 "no_ask": 55,
                 "volume": 1000,
-                "open_interest": 500,
-                "status": "open",
+                "notional_value": 100,
+                "liquidity_dollars": "$500",
+                "status": "active",
                 "close_time": datetime.now().isoformat()
             }
             for i in range(3)
         ]
 
-        parser = KalshiParser()
-        markets = parser.parse_markets(raw_markets)
+        # Parse each market individually since there's no batch parser function
+        markets = [kalshi_parser.parse_market(m) for m in raw_markets]
 
         assert len(markets) == 3
         for market in markets:
@@ -161,19 +163,19 @@ class TestPolymarketParser:
     def test_parse_market_valid_response(self):
         """Test parsing valid Polymarket market response"""
         raw_market = {
-            "id": "0xtest123",
+            "condition_id": "0xtest123",
             "question": "Test market question?",
             "outcomes": ["Yes", "No"],
             "outcomePrices": ["0.45", "0.55"],
-            "volume": "75000",
-            "liquidity": "30000",
+            "volume": 75000,
+            "liquidity": 30000,
             "closed": False,
+            "active": True,
             "endDate": (datetime.now() + timedelta(days=30)).isoformat(),
             "category": "test"
         }
 
-        parser = PolymarketParser()
-        market = parser.parse_market(raw_market)
+        market = polymarket_parser.parse_market(raw_market)
 
         assert isinstance(market, Market)
         assert market.id == "0xtest123"
@@ -192,14 +194,14 @@ class TestPolymarketParser:
             "question": "Test",
             "outcomes": ["Yes", "No"],
             "outcomePrices": ["0.42", "0.58"],
-            "volume": "1000",
-            "liquidity": "500",
+            "volume": 1000,
+            "liquidity": 500,
             "closed": False,
+            "active": True,
             "endDate": datetime.now().isoformat()
         }
 
-        parser = PolymarketParser()
-        market = parser.parse_market(raw_market)
+        market = polymarket_parser.parse_market(raw_market)
 
         assert isinstance(market.yes_price, float)
         assert isinstance(market.no_price, float)
@@ -213,14 +215,14 @@ class TestPolymarketParser:
             "question": "Test",
             "outcomes": ["Yes", "No"],
             "outcomePrices": ["0.95", "0.05"],
-            "volume": "100000",
-            "liquidity": "0",
+            "volume": 100000,
+            "liquidity": 0,
             "closed": True,
+            "active": False,
             "endDate": (datetime.now() - timedelta(days=1)).isoformat()
         }
 
-        parser = PolymarketParser()
-        market = parser.parse_market(raw_market)
+        market = polymarket_parser.parse_market(raw_market)
 
         assert market.status == MarketStatus.CLOSED
         assert market.liquidity == 0.0
@@ -233,16 +235,17 @@ class TestPolymarketParser:
                 "question": f"Test {i}",
                 "outcomes": ["Yes", "No"],
                 "outcomePrices": ["0.50", "0.50"],
-                "volume": "1000",
-                "liquidity": "500",
+                "volume": 1000,
+                "liquidity": 500,
                 "closed": False,
+                "active": True,
                 "endDate": datetime.now().isoformat()
             }
             for i in range(3)
         ]
 
-        parser = PolymarketParser()
-        markets = parser.parse_markets(raw_markets)
+        # Parse each market individually since there's no batch parser function
+        markets = [polymarket_parser.parse_market(m) for m in raw_markets]
 
         assert len(markets) == 3
         for market in markets:
@@ -254,7 +257,14 @@ class TestPolymarketParser:
 class TestKalshiClient:
     """Test Kalshi API client"""
 
-    @patch('src.exchanges.kalshi.client.requests.get')
+    def test_client_initialization(self):
+        """Test Kalshi client initializes correctly"""
+        client = KalshiClient(api_key="test_key_123")
+        assert client.api_key == "test_key_123"
+        assert client.exchange == Exchange.KALSHI
+        assert isinstance(client.session, requests.Session)
+
+    @patch('requests.Session.get')
     def test_get_markets_success(self, mock_get):
         """Test successful market data fetch from Kalshi"""
         mock_response = Mock()
@@ -263,27 +273,31 @@ class TestKalshiClient:
             "markets": [
                 {
                     "ticker": "TEST-001",
-                    "title": "Test",
+                    "title": "Test Market",
                     "yes_bid": 45,
                     "yes_ask": 47,
                     "no_bid": 53,
                     "no_ask": 55,
                     "volume": 1000,
-                    "open_interest": 500,
-                    "status": "open",
+                    "notional_value": 100,
+                    "liquidity_dollars": "$500",
+                    "status": "active",
                     "close_time": datetime.now().isoformat()
                 }
-            ]
+            ],
+            "cursor": None
         }
         mock_get.return_value = mock_response
 
         client = KalshiClient(api_key="test_key")
         markets = client.get_markets(min_volume=0)
 
-        assert len(markets) >= 0
+        assert len(markets) == 1
+        assert markets[0].id == "TEST-001"
+        assert markets[0].exchange == Exchange.KALSHI
         mock_get.assert_called_once()
 
-    @patch('src.exchanges.kalshi.client.requests.get')
+    @patch('requests.Session.get')
     def test_get_markets_filters_by_volume(self, mock_get):
         """Test that get_markets respects min_volume filter"""
         mock_response = Mock()
@@ -298,8 +312,9 @@ class TestKalshiClient:
                     "no_bid": 53,
                     "no_ask": 55,
                     "volume": 10000,
-                    "open_interest": 5000,
-                    "status": "open",
+                    "notional_value": 100,
+                    "liquidity_dollars": "$5000",
+                    "status": "active",
                     "close_time": datetime.now().isoformat()
                 },
                 {
@@ -310,11 +325,13 @@ class TestKalshiClient:
                     "no_bid": 53,
                     "no_ask": 55,
                     "volume": 100,
-                    "open_interest": 50,
-                    "status": "open",
+                    "notional_value": 100,
+                    "liquidity_dollars": "$50",
+                    "status": "active",
                     "close_time": datetime.now().isoformat()
                 }
-            ]
+            ],
+            "cursor": None
         }
         mock_get.return_value = mock_response
 
@@ -322,10 +339,11 @@ class TestKalshiClient:
         markets = client.get_markets(min_volume=5000)
 
         # Should only return markets with volume >= 5000
+        assert len(markets) == 1
         for market in markets:
             assert market.volume >= 5000
 
-    @patch('src.exchanges.kalshi.client.requests.get')
+    @patch('requests.Session.get')
     def test_get_markets_handles_api_error(self, mock_get):
         """Test handling of API errors"""
         mock_get.side_effect = requests.RequestException("API Error")
@@ -336,11 +354,61 @@ class TestKalshiClient:
         # Should return empty list on error
         assert markets == []
 
-    def test_client_initialization(self):
-        """Test Kalshi client initializes correctly"""
-        client = KalshiClient(api_key="test_key_123")
-        assert client.api_key == "test_key_123"
-        assert client.exchange == Exchange.KALSHI
+    @patch('requests.Session.get')
+    def test_get_markets_pagination(self, mock_get):
+        """Test that pagination works correctly"""
+        # First page response
+        first_response = Mock()
+        first_response.status_code = 200
+        first_response.json.return_value = {
+            "markets": [
+                {
+                    "ticker": "TEST-001",
+                    "title": "Page 1 Market",
+                    "yes_bid": 45,
+                    "yes_ask": 47,
+                    "no_bid": 53,
+                    "no_ask": 55,
+                    "volume": 1000,
+                    "notional_value": 100,
+                    "liquidity_dollars": "$500",
+                    "status": "active",
+                    "close_time": datetime.now().isoformat()
+                }
+            ],
+            "cursor": "next_page_token"
+        }
+
+        # Second page response (no more pages)
+        second_response = Mock()
+        second_response.status_code = 200
+        second_response.json.return_value = {
+            "markets": [
+                {
+                    "ticker": "TEST-002",
+                    "title": "Page 2 Market",
+                    "yes_bid": 45,
+                    "yes_ask": 47,
+                    "no_bid": 53,
+                    "no_ask": 55,
+                    "volume": 1000,
+                    "notional_value": 100,
+                    "liquidity_dollars": "$500",
+                    "status": "active",
+                    "close_time": datetime.now().isoformat()
+                }
+            ],
+            "cursor": None
+        }
+
+        mock_get.side_effect = [first_response, second_response]
+
+        client = KalshiClient(api_key="test_key")
+        markets = client.get_markets(min_volume=0)
+
+        # Should get markets from both pages
+        assert len(markets) == 2
+        assert mock_get.call_count == 2
 
 
 @pytest.mark.unit
@@ -348,34 +416,42 @@ class TestKalshiClient:
 class TestPolymarketClient:
     """Test Polymarket API client"""
 
-    @patch('src.exchanges.polymarket.client.requests.get')
+    def test_client_initialization(self):
+        """Test Polymarket client initializes correctly"""
+        client = PolymarketClient(api_key="test_key_456")
+        assert client.api_key == "test_key_456"
+        assert client.exchange == Exchange.POLYMARKET
+        assert isinstance(client.session, requests.Session)
+
+    @patch('requests.get')
     def test_get_markets_success(self, mock_get):
         """Test successful market data fetch from Polymarket"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "data": [
-                {
-                    "id": "test-001",
-                    "question": "Test",
-                    "outcomes": ["Yes", "No"],
-                    "outcomePrices": ["0.50", "0.50"],
-                    "volume": "1000",
-                    "liquidity": "500",
-                    "closed": False,
-                    "endDate": datetime.now().isoformat()
-                }
-            ]
-        }
+        mock_response.json.return_value = [
+            {
+                "condition_id": "test-001",
+                "question": "Test Market",
+                "outcomes": ["Yes", "No"],
+                "outcomePrices": ["0.50", "0.50"],
+                "volume": 1000,
+                "liquidity": 500,
+                "closed": False,
+                "active": True,
+                "endDate": datetime.now().isoformat()
+            }
+        ]
         mock_get.return_value = mock_response
 
         client = PolymarketClient(api_key="test_key")
         markets = client.get_markets(min_volume=0)
 
-        assert len(markets) >= 0
+        assert len(markets) == 1
+        assert markets[0].id == "test-001"
+        assert markets[0].exchange == Exchange.POLYMARKET
         mock_get.assert_called_once()
 
-    @patch('src.exchanges.polymarket.client.requests.get')
+    @patch('requests.get')
     def test_get_markets_handles_api_error(self, mock_get):
         """Test handling of Polymarket API errors"""
         mock_get.side_effect = requests.RequestException("API Error")
@@ -386,8 +462,31 @@ class TestPolymarketClient:
         # Should return empty list on error
         assert markets == []
 
-    def test_client_initialization(self):
-        """Test Polymarket client initializes correctly"""
-        client = PolymarketClient(api_key="test_key_456")
-        assert client.api_key == "test_key_456"
-        assert client.exchange == Exchange.POLYMARKET
+    @patch('requests.get')
+    def test_get_markets_with_dict_response(self, mock_get):
+        """Test handling Polymarket API response as dict with markets key"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "markets": [
+                {
+                    "condition_id": "test-001",
+                    "question": "Test",
+                    "outcomes": ["Yes", "No"],
+                    "outcomePrices": ["0.50", "0.50"],
+                    "volume": 1000,
+                    "liquidity": 500,
+                    "closed": False,
+                    "active": True,
+                    "endDate": datetime.now().isoformat()
+                }
+            ],
+            "next_cursor": None
+        }
+        mock_get.return_value = mock_response
+
+        client = PolymarketClient(api_key="test_key")
+        markets = client.get_markets(min_volume=0)
+
+        assert len(markets) == 1
+        assert markets[0].id == "test-001"
