@@ -42,21 +42,21 @@ def run_tests():
         return False
 
 
-def validate_core():
-    """Validate core functionality."""
-    print("Validating core functionality...")
+def validate_api():
+    """Validate API functionality."""
+    print("Validating API functionality...")
     try:
-        result = subprocess.run([sys.executable, "main.py", "test"], 
+        result = subprocess.run([sys.executable, "test_api.py"], 
                                check=True, capture_output=True, text=True)
-        if "Core types test completed!" in result.stdout:
-            print("✓ Core validation passed!")
+        if "All tests passed!" in result.stdout:
+            print("✓ API validation passed!")
             return True
         else:
-            print("✗ Core validation failed - unexpected output")
+            print("✗ API validation failed - unexpected output")
             print(result.stdout)
             return False
     except subprocess.CalledProcessError as e:
-        print("✗ Core validation failed:")
+        print("✗ API validation failed:")
         print("STDOUT:", e.stdout)
         print("STDERR:", e.stderr)
         return False
@@ -71,7 +71,7 @@ def main():
         ("Python Version Check", check_python_version),
         ("Install Dependencies", install_dependencies),
         ("Run Tests", run_tests),
-        ("Validate Core", validate_core),
+        ("Validate API", validate_api),
     ]
     
     for step_name, step_func in steps:
@@ -80,17 +80,19 @@ def main():
             print(f"\n✗ Deployment failed at: {step_name}")
             return False
     
-    print("\nPhase 1 deployment successful!")
+    print("\nCloud-ready deployment completed!")
     print("\nWhat's working:")
     print("  ✓ Core data types (Market, Quote, ArbitrageOpportunity, etc.)")
     print("  ✓ Configuration management")
     print("  ✓ Test suite (14 tests passing)")
-    print("  ✓ Paper trading foundation")
+    print("  ✓ FastAPI web service with health monitoring")
+    print("  ✓ Docker containerization")
+    print("  ✓ Multi-cloud deployment configs (AWS, GCP, Azure)")
     
-    print("\nNext: Phase 2 - Data Acquisition")
-    print("  > Set up API credentials in .env file")
-    print("  > Implement Kalshi and Polymarket connectors")
-    print("  > Add market data fetching")
+    print("\nReady for cloud deployment:")
+    print("  ☁️ Choose your cloud provider (AWS, GCP, or Azure)")
+    print("  📋 Follow CLOUD_DEPLOYMENT.md for detailed instructions")
+    print("  🚀 Deploy with: ./deploy/{provider}/deploy.sh")
     
     return True
 
