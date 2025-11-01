@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Market Arbitrage Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📊 Prediction Market Arbitrage</h1>
+            <p class="text-gray-600">Real-time arbitrage opportunities across Kalshi and Polymarket</p>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Portfolio Value</h3>
+                <p class="text-2xl font-bold text-green-600">$10,152.00</p>
+                <p class="text-sm text-green-500">+1.52% today</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Active Opportunities</h3>
+                <p class="text-2xl font-bold text-blue-600">23</p>
+                <p class="text-sm text-gray-500">Updated 5s ago</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Best Spread</h3>
+                <p class="text-2xl font-bold text-purple-600">8.9%</p>
+                <p class="text-sm text-gray-500">BTC/Election</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Win Rate</h3>
+                <p class="text-2xl font-bold text-orange-600">75%</p>
+                <p class="text-sm text-gray-500">47 trades</p>
+            </div>
+        </div>
+
+        <!-- Arbitrage Opportunities -->
+        <div class="bg-white rounded-lg shadow mb-8">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-xl font-semibold">🎯 Live Arbitrage Opportunities</h2>
+            </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left border-b">
+                                <th class="pb-2">Market</th>
+                                <th class="pb-2">Platforms</th>
+                                <th class="pb-2">Buy Price</th>
+                                <th class="pb-2">Sell Price</th>
+                                <th class="pb-2">Spread</th>
+                                <th class="pb-2">Profit</th>
+                                <th class="pb-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opportunities">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Positions -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-xl font-semibold">💼 Active Positions</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border rounded p-4">
+                        <h4 class="font-medium mb-2">Bitcoin above $50K - YES</h4>
+                        <p class="text-sm text-gray-600 mb-2">Entry: $0.45 | Current: $0.47</p>
+                        <p class="text-green-600 font-medium">+$2.00 (+4.4%)</p>
+                    </div>
+                    <div class="border rounded p-4">
+                        <h4 class="font-medium mb-2">Election Winner - Trump</h4>
+                        <p class="text-sm text-gray-600 mb-2">Entry: $0.62 | Current: $0.58</p>
+                        <p class="text-red-600 font-medium">-$4.00 (-6.5%)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data for demonstration
+        const opportunities = [
+            {
+                market: "Bitcoin above $50,000 on Dec 31",
+                platforms: "Kalshi → Polymarket", 
+                buyPrice: "$0.45",
+                sellPrice: "$0.52",
+                spread: "15.6%",
+                profit: "$7.00",
+                risk: "Medium"
+            },
+            {
+                market: "Trump wins 2024 election",
+                platforms: "Polymarket → Kalshi",
+                buyPrice: "$0.58", 
+                sellPrice: "$0.63",
+                spread: "8.6%",
+                profit: "$5.00",
+                risk: "Low"
+            },
+            {
+                market: "Fed cuts rates in Q1 2024",
+                platforms: "Kalshi → Polymarket",
+                buyPrice: "$0.72",
+                sellPrice: "$0.78", 
+                spread: "8.3%",
+                profit: "$6.00",
+                risk: "High"
+            }
+        ];
+
+        // Populate opportunities table
+        const tbody = document.getElementById('opportunities');
+        opportunities.forEach(opp => {
+            const row = document.createElement('tr');
+            row.className = 'border-b hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="py-3">${opp.market}</td>
+                <td class="py-3">
+                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">${opp.platforms}</span>
+                </td>
+                <td class="py-3">${opp.buyPrice}</td>
+                <td class="py-3">${opp.sellPrice}</td>
+                <td class="py-3">
+                    <span class="font-medium text-green-600">${opp.spread}</span>
+                </td>
+                <td class="py-3">
+                    <span class="font-medium text-green-600">${opp.profit}</span>
+                </td>
+                <td class="py-3">
+                    <button class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+                        Execute
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // API status indicator
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'fixed top-4 right-4 bg-green-500 text-white px-3 py-1 rounded text-sm';
+        statusIndicator.textContent = '🟢 API Connected';
+        document.body.appendChild(statusIndicator);
+
+        // Test API connection
+        fetch('/api/v1/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API Health:', data);
+            })
+            .catch(error => {
+                statusIndicator.textContent = '🔴 API Offline';
+                statusIndicator.className = 'fixed top-4 right-4 bg-red-500 text-white px-3 py-1 rounded text-sm';
+            });
+    </script>
+</body>
+</html>
