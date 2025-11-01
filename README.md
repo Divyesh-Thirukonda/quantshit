@@ -1,6 +1,29 @@
-# Prediction Market Arbitrage System
+# Quantshit - Prediction Market Arbitrage System
 
-A sophisticated system for detecting and executing arbitrage opportunities across prediction markets like Kalshi and Polymarket.
+🚀 **Deploy to Vercel + Supabase in 3 minutes** ⚡
+
+## Quick Deploy (Free & Easy)
+
+**Prerequisites:**
+- [Node.js](https://nodejs.org/) (for Vercel CLI)
+- GitHub account (free)
+
+**Deploy Now:**
+```powershell
+# 1. Run the deploy helper
+.\vercel-deploy.ps1
+
+# 2. Deploy to Vercel
+vercel
+```
+
+**Or follow the full guide:** `VERCEL_DEPLOY.md`
+
+---
+
+## What This Builds
+
+A **production-ready prediction market arbitrage system** that:
 
 ## Development Phases
 

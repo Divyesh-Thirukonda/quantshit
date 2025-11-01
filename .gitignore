@@ -84,3 +84,4 @@ secrets/
 temp/
 *.csv
 *.json.backup
+.vercel

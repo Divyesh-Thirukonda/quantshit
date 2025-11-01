@@ -1,0 +1,14 @@
+{
+  "name": "quantshit-api",
+  "version": "1.0.0",
+  "description": "Prediction Market Arbitrage System API",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Python app, no build needed'",
+    "start": "python api/main.py"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "latest"
+  }
+}
