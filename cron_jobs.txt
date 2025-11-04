@@ -1,0 +1,75 @@
+# Cron Job Configuration for Quantshit Trading Pipeline
+# Add these to your crontab for automated trading
+
+# Run market scan every hour (at minute 0)
+0 * * * * curl -X POST https://your-app.vercel.app/pipeline/scan-markets
+
+# Run opportunity detection every 30 minutes
+*/30 * * * * curl -X POST https://your-app.vercel.app/pipeline/detect-opportunities
+
+# Run portfolio management every 15 minutes during trading hours (9 AM - 6 PM EST)
+*/15 9-18 * * 1-5 curl -X POST https://your-app.vercel.app/pipeline/portfolio-management
+
+# Execute trades every 10 minutes during trading hours (paper trading)
+*/10 9-18 * * 1-5 curl -X POST "https://your-app.vercel.app/pipeline/execute-trades?paper_trading=true"
+
+# Daily portfolio snapshot at market close (6 PM EST)
+0 18 * * 1-5 curl -X GET https://your-app.vercel.app/dashboard/performance
+
+# Weekly performance report (Sundays at 10 AM)
+0 10 * * 0 curl -X GET "https://your-app.vercel.app/dashboard/performance?days=7"
+
+# =====================================
+# Alternative: Python-based cron jobs
+# =====================================
+
+# Use this if you prefer Python scripts over curl commands
+# Run full pipeline every hour
+# 0 * * * * cd /path/to/quantshit && python test_pipeline.py
+
+# =====================================
+# Vercel Cron Jobs (vercel.json)
+# =====================================
+
+# Add this to your vercel.json for serverless cron jobs:
+#{
+#  "crons": [
+#    {
+#      "path": "/pipeline/scan-markets",
+#      "schedule": "0 * * * *"
+#    },
+#    {
+#      "path": "/pipeline/detect-opportunities", 
+#      "schedule": "*/30 * * * *"
+#    },
+#    {
+#      "path": "/pipeline/portfolio-management",
+#      "schedule": "*/15 9-18 * * 1-5"
+#    }
+#  ]
+#}
+
+# =====================================
+# GitHub Actions (for cloud automation)
+# =====================================
+
+# Create .github/workflows/trading-pipeline.yml:
+#name: Trading Pipeline
+#on:
+#  schedule:
+#    - cron: '0 * * * *'  # Every hour
+#  workflow_dispatch:  # Manual trigger
+#
+#jobs:
+#  trade:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Run Pipeline
+#        run: |
+#          curl -X POST ${{ secrets.API_URL }}/pipeline/scan-markets
+#          sleep 30
+#          curl -X POST ${{ secrets.API_URL }}/pipeline/detect-opportunities
+#          sleep 30  
+#          curl -X POST ${{ secrets.API_URL }}/pipeline/portfolio-management
+#          sleep 30
+#          curl -X POST "${{ secrets.API_URL }}/pipeline/execute-trades?paper_trading=true"
