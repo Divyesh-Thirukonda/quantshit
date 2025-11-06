@@ -1,1 +1,1 @@
-# Test package for Quantshit Arbitrage Engine
+"""Test suite for Quantshit arbitrage engine."""
