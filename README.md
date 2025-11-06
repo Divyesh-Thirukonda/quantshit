@@ -1,1651 +1,1057 @@
-# Quantshit - Arbitrage Trading Bot# Quantshit - Cross-Venue Arbitrage Engine
+# 🎯 Quantshit - Prediction Market Arbitrage Bot
 
+> **A high-performance arbitrage trading system for prediction markets (Kalshi & Polymarket) with automated scanning, matching, execution, and portfolio management.**
 
-
-Prediction market arbitrage engine for Kalshi and Polymarket. Finds price differences, executes trades, tracks P&L.A prediction market arbitrage trading system built with clean architecture principles. Detects and executes profitable trades across Polymarket and Kalshi using advanced market matching algorithms.
-
-
-
-## Quick Start---
-
-
-
-```bash## Table of Contents
-
-git clone https://github.com/Divyesh-Thirukonda/quantshit.git
-
-cd quantshit1. [Quick Start](#quick-start)
-
-pip install -r requirements.txt2. [Testing](#testing)
-
-cp .env.example .env  # Add your API keys3. [Prerequisites](#prerequisites)
-
-python run_tests.py   # Verify setup4. [Installation & Setup](#installation--setup)
-
-python src/main.py    # Run bot5. [Running the System](#running-the-system)
-
-```6. [System Overview](#system-overview)
-
-7. [Architecture](#architecture)
-
-## Run Tests8. [Directory Structure](#directory-structure)
-
-9. [How It Works: Code Flow](#how-it-works-code-flow)
-
-```bash10. [Development Guide by Role](#development-guide-by-role)
-
-python run_tests.py              # Run all tests11. [Configuration](#configuration)
-
-python run_tests.py fast         # Quick run12. [Key Design Patterns](#key-design-patterns)
-
-python run_tests.py strategies   # Test specific module13. [Contributing](#contributing)
-
-python run_tests.py help         # See all options14. [Current Status](#current-status)
-
-```
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## What It Does
+## 📑 Table of Contents
 
-## Quick Start
-
-1. **Fetches markets** from Kalshi + Polymarket
-
-2. **Matches equivalent markets** using fuzzy string matching  ```bash
-
-3. **Calculates profit** after fees (Kalshi 0.7%, Polymarket 2%)git clone https://github.com/Divyesh-Thirukonda/quantshit.git
-
-4. **Validates trades** (capital, volume, risk limits)cd quantshit
-
-5. **Executes orders** (paper trading mode by default)pip install -r requirements.txt
-
-6. **Monitors positions** and tracks P&Lcp .env.example .env  # Add your API keys
-
-python run_tests.py  # Run tests to verify setup
-
-**Example**: Buy "Bitcoin $100k" on Polymarket @ $0.60, sell on Kalshi @ $0.68 → $45 profit (8% return)python src/main.py   # Run the bot
-
-```
-
-## Architecture
+1. [Quick Start](#-quick-start)
+2. [System Overview](#-system-overview)
+3. [Architecture & Flow](#-architecture--flow)
+4. [Directory Structure](#-directory-structure)
+5. [Development Guide](#-development-guide)
+6. [Developer Lanes](#-developer-lanes)
+7. [Commands & Scripts](#-commands--scripts)
+8. [Testing](#-testing)
+9. [API Documentation](#-api-documentation)
+10. [Configuration](#-configuration)
+11. [Deployment](#-deployment)
+12. [Contributing](#-contributing)
 
 ---
 
-Clean architecture with 3 layers:
+## 🚀 Quick Start
 
-## Testing
+### Prerequisites
+- Python 3.8+
+- pip
+- Git
 
-```
-
-┌─ OUTER (Frameworks) ──────────────────┐### Run All Tests
-
-│  exchanges/, database/, api/          │
-
-│  ┌─ MIDDLE (Services) ─────────┐      │The easiest way to verify your setup and ensure everything is working:
-
-│  │  matching/, execution/,     │      │
-
-│  │  monitoring/, strategies/   │      │```bash
-
-│  │  ┌─ INNER (Core) ────┐      │      │python run_tests.py
-
-│  │  │  models/, types.py │      │      │```
-
-│  │  └────────────────────┘      │      │
-
-│  └──────────────────────────────┘      │This runs the complete test suite with coverage reporting.
-
-└────────────────────────────────────────┘
-
-```### Test Commands
-
-
-
-**Rule**: Dependencies flow inward only. Core has zero external dependencies.```bash
-
-# Run all tests with coverage (default)
-
-## Project Structurepython run_tests.py all
-
-
-
-```# Run all tests quickly (no coverage)
-
-src/python run_tests.py fast
-
-├── main.py              # Entry point - orchestrates everything
-
-├── types.py             # Enums (Exchange, OrderSide, OrderStatus)# Run specific test categories
-
-├── models/              # Data structures (Market, Order, Position)python run_tests.py models       # Test domain models
-
-├── config/              # Settings and constantspython run_tests.py matching     # Test market matching
-
-├── exchanges/           # Kalshi & Polymarket API clientspython run_tests.py execution    # Test trade execution
-
-│   ├── kalshi/python run_tests.py strategies   # Test trading strategies
-
-│   └── polymarket/python run_tests.py integration  # Test full pipeline
-
-├── services/            # Business logic
-
-│   ├── matching/        # Find equivalent markets, score profit# Show all available commands
-
-│   ├── execution/       # Validate & execute tradespython run_tests.py help
-
-│   └── monitoring/      # Track positions, send alerts```
-
-├── strategies/          # Trading strategies
-
-└── database/            # Data persistence (in-memory)### What's Tested
-
-tests/                   # Comprehensive test suite (80+ tests)
-
-api/                     # Vercel serverless API- ✅ **Domain Models** (`test_models.py`) - Market, Opportunity, Order, Position data structures
-
-```- ✅ **Market Matching** (`test_matching.py`) - Fuzzy matching algorithm, confidence scoring
-
-- ✅ **Opportunity Scoring** (`test_matching.py`) - Profit calculation, fee accounting
-
-## Contributing by Role- ✅ **Trade Validation** (`test_execution.py`) - Pre-trade checks, risk validation
-
-- ✅ **Trade Execution** (`test_execution.py`) - Order creation, paper trading
-
-Pick your lane:- ✅ **Trading Strategies** (`test_strategies.py`) - Opportunity selection, position management
-
-- ✅ **Database** (`test_database.py`) - Data persistence, CRUD operations
-
-**🔵 Data Engineer** → `src/exchanges/` - Fix Kalshi API, add new exchanges  - ✅ **Monitoring** (`test_monitoring.py`) - Position tracking, P&L calculation, alerts
-
-**🟢 Strategy Dev** → `src/strategies/`, `src/services/matching/` - Build algorithms  - ✅ **Integration** (`test_integration.py`) - Full pipeline from market fetch to execution
-
-**🟡 Execution** → `src/services/execution/` - Implement live trading  
-
-**🟠 Portfolio** → `src/services/monitoring/`, `src/models/position.py` - P&L tracking  ---
-
-**🔴 Frontend** → `api/` - Build dashboard, fix endpoints  
-
-**⚫ QA** → `tests/` - Improve test coverage## Prerequisites
-
-
-
-## Key Files### Required
-
-
-
-| File | What It Does | Edit When |- **Python 3.10+** (3.11 recommended)
-
-|------|-------------|-----------|- **pip** (Python package manager)
-
-| `src/main.py` | Orchestrates bot, runs trading loop | Adding exchanges/strategies |- **Git** (for cloning the repository)
-
-| `src/services/matching/matcher.py` | Finds equivalent markets | Improving matching accuracy |
-
-| `src/services/matching/scorer.py` | Calculates profit | Changing fee structure |### Optional but Recommended
-
-| `src/services/execution/executor.py` | Executes trades | Implementing live trading |
-
-| `src/strategies/simple_arb.py` | Selects best opportunity | Building new strategies |- **Virtual environment** (venv, conda, or virtualenv)
-
-| `src/exchanges/*/client.py` | Exchange API calls | Fixing API issues |- **API Keys**:
-
-  - Kalshi API key ([kalshi.com](https://kalshi.com))
-
-## Configuration  - Polymarket API key ([polymarket.com](https://polymarket.com))
-
-- **Telegram** (for trade alerts)
-
-Edit `.env`:
-
-```bash### System Requirements
-
-KALSHI_API_KEY=your_key
-
-POLYMARKET_API_KEY=your_key- **OS**: Windows, macOS, or Linux
-
-PAPER_TRADING=true        # false for live trading (CAREFUL!)- **RAM**: 2GB minimum
-
-```- **Disk**: 500MB for installation
-
-- **Network**: Stable internet connection for API calls
-
-Edit `src/config/constants.py` for fees, thresholds, limits.
-
----
-
-## Current Status
-
-## Installation & Setup
-
-✅ **Working**: Market fetching, matching, scoring, validation, paper trading, tests  
-
-⚠️ **Issues**: Kalshi API returns 0 markets, position creation/closing not implemented, live trading disabled  ### 1. Clone the Repository
-
-🚀 **Next**: Fix Kalshi API, implement position lifecycle, enable live trading
+### One-Time Setup
 
 ```bash
-
-## Development Workflowgit clone https://github.com/Divyesh-Thirukonda/quantshit.git
-
+# 1. Clone the repository
+git clone <repo-url>
 cd quantshit
 
-1. Pick a task from GitHub Issues```
+# 2. Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate  # macOS/Linux
 
-2. Create branch: `git checkout -b feature/your-feature`
+# 3. Install dependencies
+pip install -r requirements.txt
 
-3. Make changes following clean architecture### 2. Create Virtual Environment (Recommended)
+# 4. Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys and configuration
 
-4. Run tests: `python run_tests.py`
+# 5. Initialize database
+python -c "from src.database import init_database; init_database()"
 
-5. Submit PR```bash
-
-# Using venv
-
-## Design Patternspython -m venv venv
-
-
-
-- **Repository Pattern**: All data access through `Repository` class# Activate (Windows)
-
-- **Strategy Pattern**: Extend `BaseStrategy` for new algorithmsvenv\Scripts\activate
-
-- **Single Responsibility**: Each module has one clear job
-
-- **Dependency Inversion**: Services depend on abstractions, not implementations# Activate (macOS/Linux)
-
-source venv/bin/activate
-
-## Running the Bot```
-
-
-
-**Single cycle** (runs once):### 3. Install Dependencies
-
-```bash
-
-python src/main.py```bash
-
-```pip install -r requirements.txt
-
+# 6. Run tests to verify setup
+python run_tests.py fast
 ```
 
-**Continuous** (edit `src/main.py`, change `bot.run_once()` to `bot.run_continuous(60)`):
-
-```bash### 4. Configure Environment Variables
-
-python src/main.py  # Runs every 60 seconds
-
-```Create a `.env` file in the project root:
-
-
-
-**API Server** (local dev):```bash
-
-```bashcp .env.example .env
-
-vercel dev  # Access at http://localhost:3000```
-
-```
-
-Edit `.env` and add your API keys:
-
-## How It Works (Code Flow)
+### Running the Bot
 
 ```bash
+# Paper trading mode (default - no real money)
+python -m src.main
 
-```# Exchange API Keys
+# Scanner mode (fetch markets and find opportunities)
+python -m src.scanner
 
-src/main.py: ArbitrageBot.run_cycle()KALSHI_API_KEY=your_kalshi_key_here
-
-  ↓POLYMARKET_API_KEY=your_polymarket_key_here
-
-1. Fetch markets (exchanges/*/client.py)
-
-  ↓# System Configuration
-
-2. Match markets (services/matching/matcher.py)PAPER_TRADING=true              # Set to false for live trading
-
-  ↓ENABLE_ALERTS=false             # Set to true to enable Telegram alerts
-
-3. Score opportunities (services/matching/scorer.py)LOG_LEVEL=INFO                  # DEBUG, INFO, WARNING, ERROR
-
-  ↓LOG_FILE=quantshit.log
-
-4. Select best (strategies/simple_arb.py)
-
-  ↓# Optional: Telegram Alerts
-
-5. Validate (services/execution/validator.py)TELEGRAM_BOT_TOKEN=your_bot_token
-
-  ↓TELEGRAM_CHAT_ID=your_chat_id
-
-6. Execute (services/execution/executor.py)```
-
-  ↓
-
-7. Monitor positions (services/monitoring/tracker.py)### 5. Verify Installation
-
-```
-
-```bash
-
-Trace the code by following this path through the files. Each step is a single function call.# Run tests to verify everything is set up correctly
-
-python run_tests.py
-
-## Adding Features```
-
-
-
-**New Exchange**:All tests should pass (or skip if dependencies are missing).
-
-1. Create `src/exchanges/newexchange/`
-
-2. Implement `client.py` (extend `BaseExchange`)### 6. Initialize Database
-
-3. Implement `parser.py` (API → `Market` model)
-
-4. Add to `src/types.py:Exchange` enumThe bot uses an in-memory database by default. To use SQLite:
-
-5. Wire into `src/main.py`
-
-```bash
-
-**New Strategy**:# Database will be created automatically on first run
-
-1. Extend `src/strategies/base.py:BaseStrategy`python src/main.py
-
-2. Implement `select_best_opportunity()````
-
-3. Use in `src/main.py` instead of `SimpleArbitrageStrategy`
-
----
-
-**Enable Live Trading** (⚠️ DANGEROUS):
-
-1. Set `PAPER_TRADING=false` in `.env`## Running the System
-
-2. Implement real order placement in `src/services/execution/executor.py:136-138`
-
-3. Test extensively with small positions first!### CLI Mode (Single Cycle)
-
-
-
-## Documentation```bash
-
-### CLI Mode (Single Cycle)
-
-- **`docs/MODULE_EXPLANATIONS.md`** - Architecture deep dive
-
-- **`docs/VISUAL_FLOW.md`** - Data flow diagramsRun one complete cycle (fetch markets → find opportunities → execute best trade):
-
-- **`docs/TESTING.md`** - Test suite details
-
-```bash
-
-## Important Warningspython src/main.py
-
-```
-
-⚠️ **Paper Trading Only**: System currently simulates trades. Live trading requires:
-
-- Valid API keys### Continuous Trading Mode
-
-- Real order implementation
-
-- Extensive testingEdit `src/main.py` to enable continuous mode:
-
-- Risk management
-
-```python
-
-⚠️ **Before Going Live**:# In main() function, change:
-
-- Test thoroughly with paper tradingbot.run_once()  # Single cycle
-
-- Start with minimum position sizes# To:
-
-- Set stop losses and position limitsbot.run_continuous(interval_seconds=60)  # Run every 60 seconds
-
-- Understand you can lose money```
-
-
-
-## SupportThen run:
-
-
-
-- **Issues**: [GitHub Issues](https://github.com/Divyesh-Thirukonda/quantshit/issues)```bash
-
-- **PRs**: [GitHub PRs](https://github.com/Divyesh-Thirukonda/quantshit/pulls)python src/main.py
-
-```
-
----
-
-Press `Ctrl+C` to stop.
-
-**Built with clean architecture principles** • Paper trading by default • Use at your own risk
-
-### API Server Mode
-
-Start the API server (Vercel serverless function):
-
-```bash
-# For local development, you can use Python's http.server or vercel dev
+# Start API server locally
 vercel dev
 ```
 
-Access the API at `http://localhost:3000`
-
-**Available Endpoints:**
-- `GET /` - Dashboard UI
-- `POST /scan` - Scan for opportunities
-- `POST /execute` - Execute a trade
-- `POST /run-strategy` - Run full strategy cycle
-- `GET /dashboard/stats` - Portfolio statistics
-
-⚠️ **Note:** API server currently has some broken endpoints - see [Current Status](#current-status).
-
 ---
 
-## System Overview
+## 🏗️ System Overview
 
 ### What Does This Bot Do?
 
-The Quantshit arbitrage engine continuously:
+The Quantshit arbitrage bot automatically:
 
-1. **Fetches markets** from Kalshi and Polymarket prediction markets
-2. **Matches equivalent markets** across exchanges using fuzzy string matching
-3. **Calculates profitability** accounting for fees, slippage, and liquidity
-4. **Selects the best opportunity** using configurable trading strategies
-5. **Validates trades** against risk limits and capital constraints
-6. **Executes trades** (currently in paper trading mode)
-7. **Monitors positions** and tracks P&L in real-time
-8. **Sends alerts** via Telegram when trades execute
+1. **Scans** prediction markets from Kalshi and Polymarket
+2. **Matches** similar markets across exchanges using NLP
+3. **Detects** arbitrage opportunities with guaranteed profits
+4. **Validates** opportunities against capital, fees, and risk limits
+5. **Executes** trades across both exchanges simultaneously
+6. **Monitors** positions and manages portfolio risk
+7. **Reports** performance metrics and alerts
 
-### Example Flow
+### Core Concept: Arbitrage
 
-```
-User starts bot
-    ↓
-Bot fetches 150 Kalshi markets + 200 Polymarket markets
-    ↓
-Matcher finds 45 similar market pairs
-    ↓
-Scorer identifies 12 profitable opportunities
-    ↓
-Strategy selects best: "Bitcoin $100k by 2025"
-  - Buy on Polymarket @ $0.60
-  - Sell on Kalshi @ $0.68
-  - Expected profit: $45 (8% return)
-    ↓
-Validator checks: ✓ Capital available, ✓ Volume sufficient
-    ↓
-Executor places orders (paper trading)
-    ↓
-Position tracker monitors for exit opportunity
-    ↓
-Alert sent to Telegram: "Trade executed: $45 profit"
-```
-
-### Core Components
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    MAIN ORCHESTRATOR                    │
-│                   (src/main.py)                         │
-│                                                         │
-│  ArbitrageBot coordinates all components               │
-└─────────────────────────────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ↓                 ↓                 ↓
-   EXCHANGES          SERVICES          STRATEGIES
-   ┌─────────┐       ┌─────────┐       ┌──────────┐
-   │ Kalshi  │       │Matching │       │ Simple   │
-   │ Client  │       │Execution│       │ Arbitrage│
-   │─────────│       │Monitor  │       └──────────┘
-   │Polymarket       └─────────┘
-   └─────────┘             │
-        │            ┌─────┴─────┐
-        │            ↓           ↓
-        │       MODELS      DATABASE
-        │      ┌──────┐    ┌─────────┐
-        └─────>│Market│───>│Repository
-               │Order │    └─────────┘
-               │Position
-               └──────┘
-```
+When the same event is priced differently on two exchanges, you can:
+- Buy YES on Exchange A at $0.60
+- Sell YES (buy NO) on Exchange B at $0.45
+- **Guaranteed profit**: $1.00 - $0.60 - $0.45 = -$0.05 (after fees, if positive = profit!)
 
 ---
 
-## Architecture
+## 🔄 Architecture & Flow
 
-Quantshit follows **clean architecture** with strict dependency rules:
+### High-Level Data Flow
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              OUTER LAYER (Frameworks)                   │
-│  main.py, api.py, exchanges/, database/                 │
-│  - External dependencies (APIs, DB, file I/O)           │
-│  - Can depend on inner layers                           │
-│                                                         │
-│    ┌──────────────────────────────────────────┐        │
-│    │       MIDDLE LAYER (Services)            │        │
-│    │  matching/, execution/, monitoring/,     │        │
-│    │  strategies/                             │        │
-│    │  - Business logic and use cases          │        │
-│    │  - Can depend on core layer              │        │
-│    │                                          │        │
-│    │   ┌──────────────────────────────┐       │        │
-│    │   │  INNER LAYER (Core Domain)  │       │        │
-│    │   │  models/, types.py          │       │        │
-│    │   │  - Pure business entities    │       │        │
-│    │   │  - No external dependencies  │       │        │
-│    │   └──────────────────────────────┘       │        │
-│    └──────────────────────────────────────────┘        │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ARBITRAGE BOT PIPELINE                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+1. DATA ACQUISITION (exchanges/)
+   ┌─────────────┐         ┌──────────────────┐
+   │   Kalshi    │────────▶│  KalshiClient    │
+   │     API     │         │    - Fetch       │
+   └─────────────┘         │    - Parse       │
+                           │    - Normalize   │
+   ┌─────────────┐         └──────────────────┘
+   │ Polymarket  │────────▶│PolymarketClient  │
+   │     API     │         │    - Fetch       │
+   └─────────────┘         │    - Parse       │
+                           │    - Normalize   │
+                           └──────────────────┘
+                                    │
+                                    ▼
+2. DATA STORAGE (database/)
+                           ┌──────────────────┐
+                           │   Repository     │
+                           │  - Markets       │
+                           │  - Opportunities │
+                           │  - Positions     │
+                           │  - Orders        │
+                           └──────────────────┘
+                                    │
+                                    ▼
+3. MARKET MATCHING (services/matching/)
+                           ┌──────────────────┐
+                           │     Matcher      │
+                           │  - Title NLP     │
+                           │  - Fuzzy Match   │
+                           │  - Similarity    │
+                           └──────────────────┘
+                                    │
+                                    ▼
+4. OPPORTUNITY SCORING (services/matching/)
+                           ┌──────────────────┐
+                           │     Scorer       │
+                           │  - Calculate P&L │
+                           │  - Apply Fees    │
+                           │  - Slippage      │
+                           │  - Confidence    │
+                           └──────────────────┘
+                                    │
+                                    ▼
+5. STRATEGY FILTERING (strategies/)
+                           ┌──────────────────┐
+                           │   Strategy       │
+                           │  - Filter        │
+                           │  - Rank          │
+                           │  - Select Best   │
+                           └──────────────────┘
+                                    │
+                                    ▼
+6. VALIDATION (services/execution/)
+                           ┌──────────────────┐
+                           │    Validator     │
+                           │  - Capital Check │
+                           │  - Risk Limits   │
+                           │  - Market Health │
+                           └──────────────────┘
+                                    │
+                                    ▼
+7. EXECUTION (services/execution/)
+                           ┌──────────────────┐
+                           │    Executor      │
+                           │  - Create Orders │
+                           │  - Submit Trades │
+                           │  - Track Status  │
+                           └──────────────────┘
+                                    │
+                                    ▼
+8. MONITORING (services/monitoring/)
+                           ┌──────────────────┐
+                           │   Tracker +      │
+                           │   Alerter        │
+                           │  - P&L Tracking  │
+                           │  - Risk Monitor  │
+                           │  - Alerts        │
+                           └──────────────────┘
 ```
 
-### Dependency Rules
+### Code Execution Flow
 
-1. **Inner layers never depend on outer layers**
-2. **Dependencies flow inward** (outer → middle → inner)
-3. **Core domain is pure** (no external dependencies)
-4. **Interfaces define boundaries** (e.g., BaseExchange, Repository)
+**Function-by-Function Trace** (Start → End):
 
-### Dependency Rules
+```python
+# Entry Point
+main.py::main()
+  └─▶ ArbitrageBot.__init__()
+      ├─▶ init_database()  # database/__init__.py
+      ├─▶ KalshiClient()   # exchanges/kalshi/client.py
+      ├─▶ PolymarketClient()  # exchanges/polymarket/client.py
+      ├─▶ Matcher()  # services/matching/matcher.py
+      ├─▶ Scorer()   # services/matching/scorer.py
+      └─▶ Executor() # services/execution/executor.py
 
-1. **Inner layers never depend on outer layers**
-2. **Dependencies flow inward** (outer → middle → inner)
-3. **Core domain is pure** (no external dependencies)
-4. **Interfaces define boundaries** (e.g., BaseExchange, Repository)
+# Main Trading Loop
+ArbitrageBot.run()
+  └─▶ ArbitrageBot._trading_cycle()
+      │
+      ├─▶ 1. FETCH MARKETS
+      │   ├─▶ kalshi_client.get_markets()
+      │   │   └─▶ parser.parse_markets()  # exchanges/kalshi/parser.py
+      │   └─▶ polymarket_client.get_markets()
+      │       └─▶ parser.parse_markets()  # exchanges/polymarket/parser.py
+      │
+      ├─▶ 2. STORE IN DATABASE
+      │   └─▶ repository.save_markets_batch()  # database/repository.py
+      │
+      ├─▶ 3. FIND MATCHES
+      │   └─▶ matcher.find_matches()  # services/matching/matcher.py
+      │       ├─▶ _normalize_title()
+      │       ├─▶ _calculate_similarity()
+      │       └─▶ _fuzzy_match()
+      │
+      ├─▶ 4. SCORE OPPORTUNITIES
+      │   └─▶ scorer.score_match()  # services/matching/scorer.py
+      │       ├─▶ _calculate_profit()
+      │       ├─▶ _apply_fees()
+      │       └─▶ _calculate_confidence()
+      │
+      ├─▶ 5. APPLY STRATEGY
+      │   └─▶ strategy.select_best_opportunity()  # strategies/simple_arb.py
+      │       ├─▶ filter_opportunities()
+      │       └─▶ rank_opportunities()
+      │
+      ├─▶ 6. VALIDATE
+      │   └─▶ validator.validate_opportunity()  # services/execution/validator.py
+      │       ├─▶ _check_capital()
+      │       ├─▶ _check_liquidity()
+      │       └─▶ _check_risk_limits()
+      │
+      ├─▶ 7. EXECUTE
+      │   └─▶ executor.execute_opportunity()  # services/execution/executor.py
+      │       ├─▶ _create_orders()
+      │       ├─▶ _submit_order()  # calls exchange clients
+      │       └─▶ repository.save_order()
+      │
+      └─▶ 8. MONITOR
+          └─▶ tracker.update_positions()  # services/monitoring/tracker.py
+              ├─▶ _calculate_pnl()
+              └─▶ alerter.send_alert()  # services/monitoring/alerter.py
+```
+
+### File-by-File Trace
+
+| Step | Files Involved | What Happens |
+|------|---------------|--------------|
+| **Startup** | `main.py` → `config/settings.py` → `database/__init__.py` | Load config, initialize DB |
+| **Fetch** | `exchanges/kalshi/client.py` + `exchanges/polymarket/client.py` | HTTP requests to APIs |
+| **Parse** | `exchanges/kalshi/parser.py` + `exchanges/polymarket/parser.py` | Raw JSON → `Market` objects |
+| **Store** | `database/repository.py` → `database/schema.py` | Save to DB |
+| **Match** | `services/matching/matcher.py` | Compare titles using NLP |
+| **Score** | `services/matching/scorer.py` → `utils/math.py` | Calculate profit & confidence |
+| **Filter** | `strategies/simple_arb.py` → `strategies/base.py` | Apply strategy rules |
+| **Validate** | `services/execution/validator.py` | Check limits |
+| **Execute** | `services/execution/executor.py` → exchange clients | Submit orders |
+| **Monitor** | `services/monitoring/tracker.py` + `alerter.py` | Track P&L, send alerts |
 
 ---
 
-## Directory Structure
-
-### Complete Project Layout
+## 📂 Directory Structure
 
 ```
 quantshit/
 │
-├── 📄 README.md                    # This file - complete project documentation
-├── 📄 requirements.txt             # Python dependencies
-├── 📄 .env.example                 # Environment variables template
-├── 📄 .env                         # Your local configuration (not in git)
-├── 📄 run_tests.py                 # Test runner script
-├── 📄 vercel.json                  # Vercel deployment configuration
-├── 📄 supabase_schema.sql          # Database schema for Supabase
+├── 📄 requirements.txt        # Python dependencies
+├── 📄 run_tests.py           # Test runner script
+├── 📄 vercel.json            # Deployment config for Vercel
+├── 📄 supabase_schema.sql    # Database schema
 │
-├── 📁 src/                         # Main application code
-│   ├── 📄 main.py                  # 🤖 MAIN ORCHESTRATOR - Entry point, wires everything together
-│   ├── 📄 scanner.py               # Market scanner (legacy/alternative)
-│   ├── 📄 types.py                 # 🎯 Core enums: Exchange, OrderSide, OrderStatus, Outcome
-│   │
-│   ├── 📁 models/                  # 📦 DOMAIN MODELS (Inner Layer - Core)
-│   │   ├── __init__.py
-│   │   ├── market.py               # Market data structure (price, volume, liquidity)
-│   │   ├── order.py                # Order data structure (buy/sell, status, fills)
-│   │   ├── position.py             # Position tracking (entry, P&L, status)
-│   │   └── opportunity.py          # Arbitrage opportunity (spread, profit, confidence)
-│   │
-│   ├── 📁 config/                  # ⚙️ CONFIGURATION
-│   │   ├── __init__.py
-│   │   ├── settings.py             # Environment variables (API keys, feature flags)
-│   │   └── constants.py            # Business constants (fees, thresholds, limits)
-│   │
-│   ├── 📁 utils/                   # 🛠️ SHARED UTILITIES
-│   │   ├── __init__.py
-│   │   ├── logger.py               # Logging configuration and setup
-│   │   ├── math.py                 # Profit calculations, decimal handling
-│   │   └── decorators.py           # Retry logic, rate limiting, error handling
-│   │
-│   ├── 📁 services/                # 🎯 BUSINESS LOGIC (Middle Layer)
-│   │   ├── __init__.py
-│   │   │
-│   │   ├── 📁 matching/            # Market matching and opportunity scoring
-│   │   │   ├── __init__.py
-│   │   │   ├── matcher.py          # Find equivalent markets (fuzzy matching)
-│   │   │   └── scorer.py           # Calculate profitability (fees, slippage)
-│   │   │
-│   │   ├── 📁 execution/           # Trade execution and validation
-│   │   │   ├── __init__.py
-│   │   │   ├── validator.py        # Pre-trade validation (capital, risk, volume)
-│   │   │   └── executor.py         # Execute trades (paper/live mode)
-│   │   │
-│   │   └── 📁 monitoring/          # Position tracking and alerts
-│   │       ├── __init__.py
-│   │       ├── tracker.py          # Track positions, calculate P&L
-│   │       └── alerter.py          # Send notifications (Telegram)
-│   │
-│   ├── 📁 strategies/              # 📊 TRADING STRATEGIES
-│   │   ├── __init__.py
-│   │   ├── base.py                 # Abstract base class for all strategies
-│   │   ├── config.py               # Strategy configuration classes
-│   │   └── simple_arb.py           # Simple arbitrage strategy (highest profit)
-│   │
-│   ├── 📁 exchanges/               # 🔌 EXCHANGE INTEGRATIONS (Outer Layer)
-│   │   ├── __init__.py
-│   │   ├── base.py                 # Abstract exchange interface (contract)
-│   │   │
-│   │   ├── 📁 kalshi/              # Kalshi exchange implementation
-│   │   │   ├── __init__.py
-│   │   │   ├── client.py           # Kalshi API client (fetch markets, place orders)
-│   │   │   └── parser.py           # Parse Kalshi API → Market model
-│   │   │
-│   │   └── 📁 polymarket/          # Polymarket exchange implementation
-│   │       ├── __init__.py
-│   │       ├── client.py           # Polymarket API client
-│   │       └── parser.py           # Parse Polymarket API → Market model
-│   │
-│   └── 📁 database/                # 💾 DATA PERSISTENCE (Outer Layer)
-│       ├── __init__.py
-│       ├── repository.py           # Repository pattern (in-memory implementation)
-│       ├── sqlite_repository.py    # SQLite implementation (alternative)
-│       └── schema.py               # Database schema definitions
+├── 📁 api/                   # 🌐 API & FRONTEND
+│   ├── index.py              # Main API handler (routes requests)
+│   ├── api_handlers.py       # Endpoint handlers (scan, execute, etc.)
+│   └── supabase_client.py    # Supabase database client
 │
-├── 📁 api/                         # 🌐 API SERVER (Vercel Serverless)
-│   ├── index.py                    # HTTP handler entry point (BaseHTTPRequestHandler)
-│   ├── api_handlers.py             # API route handlers
-│   └── supabase_client.py          # Supabase database client
+├── 📁 src/                   # 🧠 CORE APPLICATION
+│   ├── main.py               # **ENTRY POINT** - orchestrates everything
+│   ├── scanner.py            # Market scanning module (can run standalone)
+│   ├── types.py              # Type definitions (enums, protocols)
+│   │
+│   ├── 📁 config/            # ⚙️ CONFIGURATION
+│   │   ├── __init__.py       # Config module exports
+│   │   ├── settings.py       # Environment variables & API keys
+│   │   └── constants.py      # Business constants (fees, thresholds)
+│   │
+│   ├── 📁 database/          # 💾 DATA PERSISTENCE
+│   │   ├── __init__.py       # Database initialization
+│   │   ├── schema.py         # SQLAlchemy models
+│   │   ├── repository.py     # Data access layer (Supabase)
+│   │   └── sqlite_repository.py  # SQLite implementation
+│   │
+│   ├── 📁 exchanges/         # 🔌 DATA ACQUISITION
+│   │   ├── __init__.py       # Exchange module exports
+│   │   ├── base.py           # Abstract exchange interface
+│   │   ├── 📁 kalshi/
+│   │   │   ├── client.py     # Kalshi API client
+│   │   │   └── parser.py     # Parse Kalshi responses
+│   │   └── 📁 polymarket/
+│   │       ├── client.py     # Polymarket API client
+│   │       └── parser.py     # Parse Polymarket responses
+│   │
+│   ├── 📁 models/            # 📊 DOMAIN MODELS
+│   │   ├── __init__.py       # Model exports
+│   │   ├── market.py         # Market data structure
+│   │   ├── opportunity.py    # Arbitrage opportunity
+│   │   ├── order.py          # Trade order
+│   │   └── position.py       # Open position
+│   │
+│   ├── 📁 services/          # 🎯 BUSINESS LOGIC
+│   │   ├── 📁 matching/      # Market matching & scoring
+│   │   │   ├── matcher.py    # Find similar markets (NLP)
+│   │   │   └── scorer.py     # Calculate opportunity profitability
+│   │   ├── 📁 execution/     # Trade execution
+│   │   │   ├── validator.py  # Pre-trade validation
+│   │   │   └── executor.py   # Order submission & tracking
+│   │   └── 📁 monitoring/    # Performance tracking
+│   │       ├── tracker.py    # P&L and position tracking
+│   │       └── alerter.py    # Notifications & alerts
+│   │
+│   ├── 📁 strategies/        # 🧮 TRADING STRATEGIES
+│   │   ├── __init__.py       # Strategy exports
+│   │   ├── base.py           # Abstract strategy interface
+│   │   ├── config.py         # Strategy configuration
+│   │   └── simple_arb.py     # Simple arbitrage strategy
+│   │
+│   └── 📁 utils/             # 🛠️ UTILITIES
+│       ├── __init__.py       # Utility exports
+│       ├── logger.py         # Logging setup
+│       ├── math.py           # Math utilities (profit calc, etc.)
+│       └── decorators.py     # Retry, rate limiting, etc.
 │
-├── 📁 tests/                       # ✅ TEST SUITE
-│   ├── __init__.py
-│   ├── conftest.py                 # Pytest fixtures (sample data for tests)
-│   ├── test_models.py              # Test domain models
-│   ├── test_matching.py            # Test matching and scoring
-│   ├── test_execution.py           # Test validation and execution
-│   ├── test_strategies.py          # Test trading strategies
-│   ├── test_database.py            # Test data persistence
-│   ├── test_monitoring.py          # Test tracking and alerts
-│   └── test_integration.py         # Test full pipeline end-to-end
+├── 📁 tests/                 # 🧪 TEST SUITE
+│   ├── conftest.py           # Pytest fixtures & config
+│   ├── test_models.py        # Model tests
+│   ├── test_database.py      # Database tests
+│   ├── test_matching.py      # Matching logic tests
+│   ├── test_execution.py     # Execution tests
+│   ├── test_strategies.py    # Strategy tests
+│   ├── test_monitoring.py    # Monitoring tests
+│   └── test_integration.py   # End-to-end tests
 │
-├── 📁 docs/                        # 📚 DOCUMENTATION
-│   ├── MODULE_EXPLANATIONS.md      # Detailed module documentation
-│   ├── VISUAL_FLOW.md              # Data flow diagrams
-│   ├── TESTING.md                  # Testing documentation
+├── 📁 docs/                  # 📚 DOCUMENTATION
+│   ├── MODULE_EXPLANATIONS.md      # Detailed module docs
 │   ├── DATABASE_SYSTEM.md          # Database architecture
-│   ├── KALSHI_FIX.md               # Kalshi integration notes
-│   ├── PAGINATION_IMPLEMENTATION.md # API pagination guide
-│   ├── STRATEGY_CONFIG_REFACTOR.md # Strategy configuration changes
-│   └── TEST_SUITE_SUMMARY.md       # Test coverage summary
+│   ├── TESTING.md                  # Testing guide
+│   ├── STRATEGY_CONFIG_REFACTOR.md # Strategy design
+│   └── ...                         # Other docs
 │
-├── 📁 examples/                    # 📝 EXAMPLE CODE
-│   └── custom_strategy_config.py   # Example: Create custom strategy
+├── 📁 examples/              # 📖 EXAMPLES
+│   └── custom_strategy_config.py  # How to create custom strategies
 │
-└── 📁 scripts/                     # 🔧 UTILITY SCRIPTS
-    └── db_query.py                 # Database query helper
+└── 📁 scripts/               # 🔧 UTILITY SCRIPTS
+    └── db_query.py           # Database query tool
 ```
 
-### Key Files Explained
+### File Purpose Quick Reference
 
 | File | Purpose | When to Edit |
 |------|---------|--------------|
-| `src/main.py` | Main orchestrator - wires all components together | Adding new exchanges, strategies, or changing main loop |
-| `src/types.py` | Core enums used across the system | Adding new exchange, order type, or status |
-| `src/models/*.py` | Domain models (pure data structures) | Changing data structures or adding fields |
-| `src/config/settings.py` | Environment configuration | Adding new environment variables |
-| `src/config/constants.py` | Business constants (fees, limits) | Changing fees, thresholds, or business rules |
-| `src/services/matching/matcher.py` | Market matching algorithm | Improving matching accuracy |
-| `src/services/matching/scorer.py` | Profit calculation | Changing fee structure or profit formula |
-| `src/services/execution/validator.py` | Trade validation rules | Adding new risk checks |
-| `src/services/execution/executor.py` | Trade execution logic | Implementing live trading |
-| `src/strategies/simple_arb.py` | Trading strategy logic | Changing opportunity selection criteria |
-| `src/exchanges/*/client.py` | Exchange API integration | Fixing API issues or adding endpoints |
-| `src/database/repository.py` | Data persistence layer | Adding new queries or data operations |
-| `run_tests.py` | Test runner | Adding new test categories |
+| `main.py` | Bot orchestration & main loop | Changing overall bot flow |
+| `scanner.py` | Market scanning (standalone) | Updating scan logic |
+| `config/settings.py` | Environment config | Adding new env vars |
+| `config/constants.py` | Business rules (fees, limits) | Changing trading parameters |
+| `database/repository.py` | Database operations | Adding new queries |
+| `exchanges/*/client.py` | Exchange API calls | API changes or new endpoints |
+| `exchanges/*/parser.py` | Parse API responses | API response format changes |
+| `models/*.py` | Data structures | Adding new fields |
+| `services/matching/matcher.py` | Market matching logic | Improving matching algorithm |
+| `services/matching/scorer.py` | Profit calculations | Changing profit formula |
+| `services/execution/validator.py` | Pre-trade checks | Adding validation rules |
+| `services/execution/executor.py` | Order submission | Changing execution logic |
+| `strategies/simple_arb.py` | Trading strategy | Changing strategy behavior |
+| `api/api_handlers.py` | API endpoints | Adding new endpoints |
 
 ---
 
-## How It Works: Code Flow
+## 🎓 Development Guide
 
-### Tracing a Complete Cycle
+### Setting Up Development Environment
 
-Follow the code execution step-by-step through the bot:
-
-#### 1️⃣ **Initialization** (`src/main.py:36-98`)
-
-```python
-bot = ArbitrageBot()  # Line 318
-```
-
-**What happens:**
-- Validates configuration (`settings.validate()`)
-- Initializes database (`init_database()`)
-- Creates exchange clients (`KalshiClient`, `PolymarketClient`)
-- Creates services (`Matcher`, `Scorer`, `Validator`, `Executor`)
-- Creates monitoring (`Tracker`, `Alerter`)
-- Creates strategy (`SimpleArbitrageStrategy`)
-
-**Files involved:**
-- `src/main.py` → `ArbitrageBot.__init__()`
-- `src/config/settings.py` → `Settings.validate()`
-- `src/exchanges/kalshi/client.py` → `KalshiClient()`
-- `src/exchanges/polymarket/client.py` → `PolymarketClient()`
-
-#### 2️⃣ **Start Cycle** (`src/main.py:100-104`)
-
-```python
-bot.run_cycle()  # Line 321 or 324
-```
-
-**What happens:**
-- Logs cycle start
-- Increments cycle counter
-- Wraps everything in try/except for error handling
-
-**Files involved:**
-- `src/main.py` → `ArbitrageBot.run_cycle()`
-
-#### 3️⃣ **Fetch Markets** (`src/main.py:106-110`)
-
-```python
-kalshi_markets, polymarket_markets = self._fetch_markets()
-```
-
-**What happens:**
-- Calls Kalshi API to fetch active markets
-- Calls Polymarket API to fetch active markets
-- Parses API responses into `Market` models
-- Filters by minimum volume from strategy config
-
-**Files involved:**
-- `src/main.py` → `_fetch_markets()`
-- `src/exchanges/kalshi/client.py` → `get_markets()`
-- `src/exchanges/kalshi/parser.py` → Parse response
-- `src/exchanges/polymarket/client.py` → `get_markets()`
-- `src/exchanges/polymarket/parser.py` → Parse response
-- `src/models/market.py` → `Market` data structure
-
-**API Calls:**
-- `GET /markets` on Kalshi
-- `GET /markets` on Polymarket
-
-#### 4️⃣ **Match Markets** (`src/main.py:112-116`)
-
-```python
-matched_pairs = self.matcher.find_matches(kalshi_markets, polymarket_markets)
-```
-
-**What happens:**
-- Compares all Kalshi markets against all Polymarket markets
-- Normalizes titles (lowercase, remove punctuation)
-- Calculates Jaccard similarity (word overlap)
-- Filters matches above threshold (default 0.5)
-- Returns list of (kalshi_market, polymarket_market, confidence_score)
-
-**Files involved:**
-- `src/services/matching/matcher.py` → `find_matches()`
-
-**Algorithm:**
-```python
-similarity = len(words_A ∩ words_B) / len(words_A ∪ words_B)
-if similarity >= threshold:
-    matches.append((market_A, market_B, similarity))
-```
-
-#### 5️⃣ **Score Opportunities** (`src/main.py:122-129`)
-
-```python
-opportunities = self.scorer.score_opportunities(matched_pairs)
-```
-
-**What happens:**
-- For each matched pair, calculates potential profit
-- Accounts for Kalshi fees (0.7%), Polymarket fees (2%), slippage (1%)
-- Filters opportunities below minimum profit threshold (2%)
-- Creates `Opportunity` objects with profit metrics
-- Saves to repository
-
-**Files involved:**
-- `src/services/matching/scorer.py` → `score_opportunities()`
-- `src/models/opportunity.py` → `Opportunity` data structure
-- `src/database/repository.py` → `save_opportunity()`
-
-**Formula:**
-```python
-spread = |price_kalshi - price_polymarket|
-profit = spread - fee_kalshi - fee_polymarket - slippage
-profit_pct = profit / capital_invested
-```
-
-#### 6️⃣ **Select Best Opportunity** (`src/main.py:135-148`)
-
-```python
-best_opportunity = self.strategy.select_best_opportunity(opportunities)
-```
-
-**What happens:**
-- Strategy filters opportunities by:
-  - Minimum volume (configurable)
-  - Minimum confidence (configurable)
-  - Minimum profit percentage
-- Selects opportunity with highest expected profit
-- Returns `None` if no opportunities meet criteria
-
-**Files involved:**
-- `src/strategies/simple_arb.py` → `select_best_opportunity()`
-- `src/strategies/config.py` → `SimpleArbitrageConfig`
-
-#### 7️⃣ **Validate Trade** (`src/main.py:150-156`)
-
-```python
-validation = self.validator.validate(best_opportunity)
-```
-
-**What happens:**
-- Checks if sufficient capital available
-- Checks if volume is adequate for position size
-- Checks if spread is still valid
-- Returns `ValidationResult` with pass/fail and reason
-
-**Files involved:**
-- `src/services/execution/validator.py` → `validate()`
-
-**Validation Checks:**
-- `capital_required <= available_capital`
-- `volume >= min_position_size`
-- `confidence_score >= min_confidence`
-
-#### 8️⃣ **Execute Trade** (`src/main.py:163-192`)
-
-```python
-execution = self.executor.execute(best_opportunity)
-```
-
-**What happens:**
-- Creates buy order for lower-priced exchange
-- Creates sell order for higher-priced exchange
-- In paper mode: simulates order fills
-- In live mode: calls exchange APIs (not implemented)
-- Saves orders to repository
-- Returns `ExecutionResult`
-
-**Files involved:**
-- `src/services/execution/executor.py` → `execute()`
-- `src/models/order.py` → `Order` data structure
-- `src/database/repository.py` → `save_order()`
-
-**Order Creation:**
-```python
-buy_order = Order(
-    exchange=lower_price_exchange,
-    side=OrderSide.BUY,
-    price=lower_price,
-    quantity=position_size
-)
-sell_order = Order(
-    exchange=higher_price_exchange,
-    side=OrderSide.SELL,
-    price=higher_price,
-    quantity=position_size
-)
-```
-
-#### 9️⃣ **Monitor Positions** (`src/main.py:197-219`)
-
-```python
-self._monitor_positions()
-```
-
-**What happens:**
-- Fetches all open positions from repository
-- Updates current prices for each position
-- Calculates unrealized P&L
-- Checks if any positions should be closed
-- Logs summary statistics
-
-**Files involved:**
-- `src/main.py` → `_monitor_positions()`
-- `src/services/monitoring/tracker.py` → `update_position()`, `get_summary()`
-- `src/strategies/simple_arb.py` → `should_close_position()`
-
-#### 🔟 **Send Alerts** (`src/main.py:176-188`)
-
-```python
-self.alerter.alert_trade_executed(...)
-```
-
-**What happens:**
-- If alerts enabled, sends Telegram message
-- Includes profit, market title, success/failure
-- Sends error alerts on failures
-
-**Files involved:**
-- `src/services/monitoring/alerter.py` → `alert_trade_executed()`, `alert_error()`
-
----
-
-## Development Guide by Role
-
-### 🎨 **Role-Based Development Map**
-
-```
-┌────────────────────────────────────────────────────────────┐
-│                    DEVELOPER ROLES                         │
-└────────────────────────────────────────────────────────────┘
-
-🔵 DATA ACQUISITION ENGINEER
-   Focus: Fetching market data from exchanges
-   Files: src/exchanges/*/client.py, src/exchanges/*/parser.py
-   Tasks: Fix Kalshi API, add new exchanges, improve data quality
-   
-🟢 STRATEGY DEVELOPER  
-   Focus: Trading algorithms and opportunity selection
-   Files: src/strategies/*.py, src/services/matching/*
-   Tasks: Build new strategies, improve matching, optimize selection
-   
-🟡 EXECUTION ENGINEER
-   Focus: Trade execution and order management  
-   Files: src/services/execution/*.py
-   Tasks: Implement live trading, handle order failures, manage positions
-   
-🟠 PORTFOLIO MANAGER
-   Focus: Position tracking, P&L, risk management
-   Files: src/services/monitoring/*, src/models/position.py
-   Tasks: Improve P&L calc, add risk limits, position lifecycle
-   
-🔴 API/FRONTEND DEVELOPER
-   Focus: Web interface and API endpoints
-   Files: api/*, vercel.json
-   Tasks: Build dashboard, fix endpoints, add visualizations
-   
-🟣 DEVOPS/DEPLOYMENT
-   Focus: Deployment, infrastructure, monitoring
-   Files: vercel.json, requirements.txt, scripts/*
-   Tasks: Deploy to prod, setup CI/CD, monitoring/alerting
-   
-⚫ QA/TESTING ENGINEER
-   Focus: Test coverage, validation, quality
-   Files: tests/*, run_tests.py
-   Tasks: Write tests, improve coverage, integration testing
-```
-
-### Developer Guides by Role
-
-#### 🔵 Data Acquisition Engineer
-
-**Your Mission:** Fetch high-quality market data from exchanges reliably.
-
-**Files You'll Work With:**
-- `src/exchanges/kalshi/client.py` - Kalshi API integration
-- `src/exchanges/kalshi/parser.py` - Parse Kalshi responses
-- `src/exchanges/polymarket/client.py` - Polymarket API integration
-- `src/exchanges/polymarket/parser.py` - Parse Polymarket responses
-- `src/exchanges/base.py` - Exchange interface (contract)
-- `src/models/market.py` - Market data structure
-
-**Common Tasks:**
-1. **Fix Kalshi API Integration** (Currently returns 0 markets)
-   - Check authentication in `src/exchanges/kalshi/client.py:22`
-   - Verify API endpoint and request format
-   - Test with Kalshi API documentation
-   
-2. **Add New Exchange**
-   - Create `src/exchanges/newexchange/` directory
-   - Implement `client.py` extending `BaseExchange`
-   - Implement `parser.py` to convert API → `Market` model
-   - Add exchange to `src/types.py:Exchange` enum
-   - Wire into `src/main.py`
-
-3. **Improve Data Quality**
-   - Add data validation in parsers
-   - Handle missing/malformed data gracefully
-   - Add retry logic for failed requests
-   - Implement caching to reduce API calls
-
-**Testing Your Changes:**
 ```bash
-# Test exchange clients
-python run_tests.py  # Will need to add exchange tests
+# 1. Fork and clone
+git clone https://github.com/your-username/quantshit.git
+cd quantshit
 
-# Manual testing
-python -c "from src.exchanges.kalshi import KalshiClient; \
-           client = KalshiClient('your_key'); \
-           markets = client.get_markets(); \
-           print(f'Fetched {len(markets)} markets')"
+# 2. Create virtual environment
+python -m venv venv
+.\venv\Scripts\activate
+
+# 3. Install dependencies (including dev dependencies)
+pip install -r requirements.txt
+pip install pytest pytest-cov pytest-asyncio black flake8 mypy
+
+# 4. Set up pre-commit hooks (optional but recommended)
+pip install pre-commit
+pre-commit install
+
+# 5. Create .env file
+cp .env.example .env
+# Add your test API keys
+
+# 6. Run tests to verify
+python run_tests.py all
 ```
 
-**What to Consider:**
-- API rate limits (use `@rate_limit` decorator from `src/utils/decorators.py`)
-- API authentication (keys, tokens, OAuth)
-- Error handling (network failures, invalid responses)
-- Data normalization (different exchanges have different formats)
-- Testing with real API vs mocked data
+### Development Workflow
+
+```bash
+# 1. Create a feature branch
+git checkout -b feature/your-feature-name
+
+# 2. Make changes and test frequently
+python run_tests.py fast  # Quick tests
+
+# 3. Run full test suite before committing
+python run_tests.py all
+
+# 4. Format code
+black src/ tests/
+flake8 src/ tests/
+
+# 5. Commit and push
+git add .
+git commit -m "feat: your feature description"
+git push origin feature/your-feature-name
+
+# 6. Open pull request
+```
+
+### Code Style Guidelines
+
+- **PEP 8** compliance (use `black` for formatting)
+- **Type hints** for all function signatures
+- **Docstrings** for all public functions/classes
+- **Descriptive variable names** (no single letters except loop counters)
+- **Keep functions small** (< 50 lines)
+- **DRY principle** - don't repeat yourself
+
+### Adding New Features
+
+#### Example: Adding a New Exchange
+
+1. Create `src/exchanges/newexchange/` directory
+2. Implement `client.py` extending `BaseExchange`
+3. Implement `parser.py` with parsing logic
+4. Add tests in `tests/test_exchanges.py`
+5. Update `exchanges/__init__.py` to export new client
+6. Update `main.py` to initialize new client
+
+#### Example: Adding a New Strategy
+
+1. Create `src/strategies/my_strategy.py`
+2. Extend `BaseStrategy` class
+3. Implement required methods:
+   - `filter_opportunities()`
+   - `rank_opportunities()`
+   - `should_close_position()`
+4. Add configuration in `strategies/config.py`
+5. Add tests in `tests/test_strategies.py`
+6. Use in `main.py` by instantiating your strategy
 
 ---
 
-#### 🟢 Strategy Developer
+## 👥 Developer Lanes
 
-**Your Mission:** Build intelligent algorithms to select profitable opportunities.
+### 🎨 Role-Based Development Guide
 
-**Files You'll Work With:**
-- `src/strategies/simple_arb.py` - Current simple strategy
-- `src/strategies/base.py` - Base class for all strategies
-- `src/strategies/config.py` - Strategy configuration
-- `src/services/matching/matcher.py` - Market matching
-- `src/services/matching/scorer.py` - Profit calculation
-- `src/models/opportunity.py` - Opportunity data structure
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      DEVELOPER ROLE MAP                              │
+└─────────────────────────────────────────────────────────────────────┘
 
-**Common Tasks:**
-1. **Create New Strategy**
-   ```python
-   # src/strategies/my_strategy.py
-   from .base import BaseStrategy
-   from .config import BaseStrategyConfig
-   
-   class MyStrategyConfig(BaseStrategyConfig):
-       custom_param: float = 0.5
-   
-   class MyStrategy(BaseStrategy):
-       def __init__(self, config: MyStrategyConfig):
-           super().__init__(config)
-       
-       def select_best_opportunity(self, opportunities):
-           # Your logic here
-           pass
-       
-       def should_close_position(self, position):
-           # Your logic here
-           pass
-   ```
+🟦 DATA ACQUISITION ENGINEER
+├─ Files: exchanges/*, models/market.py
+├─ Focus: API integration, data parsing, rate limiting
+├─ Skills: HTTP requests, JSON parsing, API documentation
+└─ Tasks: Add exchanges, fix parsers, handle API changes
 
-2. **Improve Market Matching**
-   - Enhance similarity algorithm in `matcher.py`
-   - Add semantic matching (ML-based)
-   - Consider market categories, tags, keywords
-   - Improve confidence scoring
+🟩 STRATEGY DEVELOPER
+├─ Files: strategies/*, services/matching/scorer.py
+├─ Focus: Trading logic, opportunity filtering, ranking
+├─ Skills: Finance, statistics, algorithmic trading
+└─ Tasks: Create strategies, tune parameters, backtest
 
-3. **Optimize Opportunity Selection**
-   - Add risk-adjusted returns (Sharpe ratio)
-   - Consider historical performance
-   - Factor in market liquidity depth
-   - Multi-objective optimization (profit vs risk vs probability)
+🟨 EXECUTION ENGINEER
+├─ Files: services/execution/*, models/order.py
+├─ Focus: Order management, validation, risk controls
+├─ Skills: Trading systems, order types, error handling
+└─ Tasks: Improve execution, add order types, risk limits
 
-**Testing Your Changes:**
-```bash
-# Test strategies
-python run_tests.py strategies
+🟪 DATABASE & BACKEND ENGINEER
+├─ Files: database/*, api/*, models/*
+├─ Focus: Data persistence, API endpoints, queries
+├─ Skills: SQL, ORMs, REST APIs, database design
+└─ Tasks: Schema changes, optimize queries, API endpoints
 
-# Test matching
-python run_tests.py matching
+🟥 MONITORING & DEVOPS
+├─ Files: services/monitoring/*, config/*, utils/logger.py
+├─ Focus: Observability, alerts, deployment, scaling
+├─ Skills: Logging, metrics, CI/CD, cloud platforms
+└─ Tasks: Add metrics, alerts, deploy, monitor
+
+🟧 QA & TESTING ENGINEER
+├─ Files: tests/*, run_tests.py
+├─ Focus: Test coverage, test quality, CI
+├─ Skills: Pytest, mocking, integration testing
+└─ Tasks: Write tests, improve coverage, find bugs
+
+🟫 FRONTEND DEVELOPER
+├─ Files: api/*, vercel.json
+├─ Focus: API design, frontend integration, dashboards
+├─ Skills: REST APIs, JavaScript, React, data viz
+└─ Tasks: Build UI, create dashboards, API design
 ```
 
-**What to Consider:**
-- Profitability vs probability tradeoff
-- Risk management (position sizing, stop losses)
-- Market conditions (volatility, liquidity)
-- Strategy parameter optimization (backtesting)
-- Multiple simultaneous positions
+### Lane-Specific Guides
+
+#### 🟦 DATA ACQUISITION
+
+**Your Mission**: Get clean, reliable market data from exchanges.
+
+**Key Files**:
+- `exchanges/base.py` - Interface all clients must implement
+- `exchanges/kalshi/client.py` - Kalshi API integration
+- `exchanges/polymarket/client.py` - Polymarket API integration
+- `exchanges/*/parser.py` - Convert API responses to `Market` objects
+
+**Common Tasks**:
+1. **Add New Exchange**:
+   - Extend `BaseExchange`
+   - Implement `get_markets()`, `place_order()`, `get_positions()`
+   - Create parser to normalize data
+   - Add tests
+
+2. **Fix API Breaking Changes**:
+   - Check parser tests first
+   - Update field mappings
+   - Validate with real API calls
+
+3. **Improve Data Quality**:
+   - Add validation in parsers
+   - Handle missing/invalid fields
+   - Log data quality issues
+
+**Testing**: `python run_tests.py exchanges`
 
 ---
 
-#### 🟡 Execution Engineer
+#### 🟩 STRATEGY DEVELOPER
 
-**Your Mission:** Execute trades reliably and handle order lifecycle.
+**Your Mission**: Define what opportunities to trade and how to rank them.
 
-**Files You'll Work With:**
-- `src/services/execution/executor.py` - Trade execution
-- `src/services/execution/validator.py` - Pre-trade validation
-- `src/models/order.py` - Order data structure
-- `src/exchanges/*/client.py` - Exchange order APIs
+**Key Files**:
+- `strategies/base.py` - Strategy interface
+- `strategies/simple_arb.py` - Reference implementation
+- `strategies/config.py` - Strategy configuration
+- `services/matching/scorer.py` - Profit calculations
 
-**Common Tasks:**
-1. **Implement Live Trading** (Currently paper trading only)
-   - Implement real order placement in `executor.py:136-138`
-   - Call exchange APIs: `client.place_order()`
-   - Handle order responses (order ID, status, fills)
-   - Implement order status polling
-   
-2. **Handle Order Failures**
-   - Timeout handling
-   - Partial fills
-   - Order rejections
-   - Retry logic with backoff
-   
-3. **Order Lifecycle Management**
-   - Order status updates (pending → filled → closed)
-   - Cancel orders
-   - Modify orders
-   - Handle multiple order types (limit, market, stop)
+**Common Tasks**:
+1. **Create New Strategy**:
+   - Extend `BaseStrategy`
+   - Define filtering logic (what to skip)
+   - Define ranking logic (what's best)
+   - Configure parameters in `config.py`
 
-**Testing Your Changes:**
-```bash
-# Test execution
-python run_tests.py execution
+2. **Tune Existing Strategy**:
+   - Adjust thresholds in config
+   - Update `filter_opportunities()`
+   - Change ranking criteria
 
-# Test with paper trading first
-PAPER_TRADING=true python src/main.py
-```
+3. **Improve Scoring**:
+   - Modify `scorer.py` profit formulas
+   - Add new confidence signals
+   - Incorporate historical data
 
-**What to Consider:**
-- Exchange-specific order requirements
-- Order timing and execution speed
-- Slippage management
-- Transaction costs and fees
-- Error recovery and rollback
-- Order matching and fills
+**Testing**: `python run_tests.py strategies`
+
+**Example**: See `examples/custom_strategy_config.py`
 
 ---
 
-#### 🟠 Portfolio Manager
+#### 🟨 EXECUTION ENGINEER
 
-**Your Mission:** Track positions, calculate P&L, manage risk.
+**Your Mission**: Safely and reliably execute trades across exchanges.
 
-**Files You'll Work With:**
-- `src/services/monitoring/tracker.py` - Position tracking
-- `src/services/monitoring/alerter.py` - Alerts and notifications
-- `src/models/position.py` - Position data structure
-- `src/main.py` - Position lifecycle (create, update, close)
+**Key Files**:
+- `services/execution/validator.py` - Pre-trade validation
+- `services/execution/executor.py` - Order submission
+- `models/order.py` - Order data structure
 
-**Common Tasks:**
-1. **Implement Position Creation** (Currently not implemented)
-   - Create position from executed orders (`main.py:182-184`)
-   - Link position to opportunity
-   - Set entry prices and quantities
-   
-2. **Implement Position Closing** (Currently not implemented)
-   - Detect when to close positions (`main.py:242-245`)
-   - Execute closing trades
-   - Calculate realized P&L
-   - Update position status
-   
-3. **Enhance P&L Calculation**
-   - Real-time mark-to-market
-   - Unrealized vs realized P&L
-   - Fee attribution
-   - Historical performance tracking
+**Common Tasks**:
+1. **Add Validation Rules**:
+   - Add checks in `validator.py`
+   - Consider capital, liquidity, fees
+   - Add risk limit checks
 
-4. **Add Risk Management**
-   - Position size limits
-   - Portfolio-level risk (VaR, max drawdown)
-   - Correlation between positions
-   - Stop losses and take profits
+2. **Improve Execution**:
+   - Handle partial fills
+   - Add order types (market, limit)
+   - Implement retry logic
 
-**Testing Your Changes:**
-```bash
-# Test monitoring
-python run_tests.py monitoring
+3. **Error Handling**:
+   - Graceful degradation
+   - Rollback on failure
+   - Alert on critical errors
 
-# Test full pipeline
-python run_tests.py integration
-```
-
-**What to Consider:**
-- Position lifecycle states
-- P&L calculation accuracy
-- Risk metrics and limits
-- Performance attribution
-- Position exit strategies
+**Testing**: `python run_tests.py execution`
 
 ---
 
-#### 🔴 API/Frontend Developer
+#### 🟪 DATABASE & BACKEND
 
-**Your Mission:** Build web interface and API for the bot.
+**Your Mission**: Persist data and expose APIs for frontend/automation.
 
-**Files You'll Work With:**
-- `api/index.py` - HTTP server entry point (BaseHTTPRequestHandler)
-- `api/api_handlers.py` - API route handlers
-- `api/supabase_client.py` - Database client for API
-- `vercel.json` - Deployment configuration
+**Key Files**:
+- `database/schema.py` - SQLAlchemy models
+- `database/repository.py` - Data access layer
+- `api/index.py` - API router
+- `api/api_handlers.py` - Endpoint logic
 
-**Common Tasks:**
-1. **Fix Broken Endpoints** (See CLAUDE.md TODO)
-   - Fix endpoints referencing non-existent methods
-   - Update API handlers to use new architecture
-   - Add proper error handling
-   
-2. **Build Dashboard UI**
-   - Real-time opportunity display
-   - Position tracking dashboard
-   - P&L charts and metrics
-   - Trade history
-   
-3. **Add API Endpoints**
-   ```python
-   @app.get("/api/opportunities")
-   async def get_opportunities():
-       # Return current opportunities
-       pass
-   
-   @app.get("/api/positions")
-   async def get_positions():
-       # Return open positions
-       pass
-   ```
+**Common Tasks**:
+1. **Schema Changes**:
+   - Add fields to `schema.py`
+   - Create migration script
+   - Update repository methods
 
-4. **WebSocket Support**
-   - Real-time updates for dashboard
-   - Live P&L streaming
-   - Order status updates
+2. **Add API Endpoint**:
+   - Add handler in `api_handlers.py`
+   - Add route in `index.py`
+   - Document in API docs
 
-**Testing Your Changes:**
+3. **Optimize Queries**:
+   - Add indexes
+   - Use batch operations
+   - Cache frequent queries
+
+**Testing**: `python run_tests.py database`
+
+---
+
+#### 🟥 MONITORING & DEVOPS
+
+**Your Mission**: Ensure bot runs reliably and alert on issues.
+
+**Key Files**:
+- `services/monitoring/tracker.py` - P&L tracking
+- `services/monitoring/alerter.py` - Alerts/notifications
+- `utils/logger.py` - Logging setup
+- `vercel.json` - Deployment config
+
+**Common Tasks**:
+1. **Add Metrics**:
+   - Track in `tracker.py`
+   - Log to file/service
+   - Create dashboards
+
+2. **Set Up Alerts**:
+   - Define alert conditions in `alerter.py`
+   - Configure Telegram/email
+   - Test alert delivery
+
+3. **Deploy & Scale**:
+   - Configure Vercel settings
+   - Set up environment variables
+   - Monitor resource usage
+
+**Testing**: `python run_tests.py monitoring`
+
+---
+
+#### 🟧 QA & TESTING
+
+**Your Mission**: Ensure code quality and catch bugs before production.
+
+**Key Files**:
+- `tests/conftest.py` - Shared fixtures
+- `tests/test_*.py` - Test modules
+- `run_tests.py` - Test runner
+
+**Common Tasks**:
+1. **Write Tests**:
+   - Unit tests for new features
+   - Integration tests for workflows
+   - Mock external dependencies
+
+2. **Improve Coverage**:
+   - Run `python run_tests.py all`
+   - Check `htmlcov/index.html`
+   - Add tests for uncovered lines
+
+3. **Set Up CI**:
+   - GitHub Actions workflow
+   - Run tests on PR
+   - Block merge if tests fail
+
+**Testing**: `python run_tests.py all --cov`
+
+---
+
+#### 🟫 FRONTEND DEVELOPER
+
+**Your Mission**: Build interfaces for traders and admins.
+
+**Key Files**:
+- `api/index.py` - API routes
+- `api/api_handlers.py` - API logic
+- `vercel.json` - Deployment config
+
+**Available Endpoints**:
+- `GET /api/markets` - List markets
+- `GET /api/opportunities` - List opportunities
+- `GET /api/positions` - Current positions
+- `GET /api/orders` - Order history
+- `GET /api/stats` - Performance stats
+- `POST /api/scan-markets` - Trigger scan
+- `POST /api/execute-trades` - Execute opportunities
+
+**Common Tasks**:
+1. **Build Dashboard**:
+   - Fetch data from API
+   - Display opportunities
+   - Show P&L charts
+
+2. **Add Controls**:
+   - Trigger scans
+   - Approve trades
+   - Adjust parameters
+
+3. **Improve API**:
+   - Add pagination
+   - Add filtering
+   - Optimize responses
+
+**Testing**: `vercel dev` (local testing)
+
+---
+
+## 🔧 Commands & Scripts
+
+### Running the Bot
+
 ```bash
-# Start API server locally
+# Main bot (paper trading)
+python -m src.main
+
+# Scanner only (fetch markets, find opportunities)
+python -m src.scanner
+
+# API server (local)
 vercel dev
 
-# Test endpoints
-curl http://localhost:3000/api/opportunities
-```
-
-**What to Consider:**
-- API authentication and security
-- Rate limiting
-- CORS configuration
-- Error responses and status codes
-- WebSocket connections
-- Frontend framework (React, Vue, etc.)
-
----
-
-#### 🟣 DevOps/Deployment Engineer
-
-**Your Mission:** Deploy bot to production, ensure reliability.
-
-**Files You'll Work With:**
-- `vercel.json` - Vercel deployment config
-- `requirements.txt` - Python dependencies
-- `.env.example` - Environment template
-- `scripts/` - Utility scripts
-
-**Common Tasks:**
-1. **Setup CI/CD Pipeline**
-   - GitHub Actions for automated testing
-   - Automated deployment to Vercel
-   - Environment management (dev, staging, prod)
-   
-2. **Production Deployment**
-   - Deploy API to Vercel
-   - Deploy bot to cloud (AWS, GCP, Azure)
-   - Setup scheduled runs (cron jobs)
-   - Configure secrets management
-   
-3. **Monitoring and Alerting**
-   - Application monitoring (Datadog, NewRelic)
-   - Error tracking (Sentry)
-   - Performance metrics
-   - Uptime monitoring
-   
-4. **Infrastructure**
-   - Database setup (PostgreSQL, Supabase)
-   - Message queue (for async processing)
-   - Caching (Redis)
-   - Load balancing
-
-**Testing Your Changes:**
-```bash
-# Test deployment locally
-vercel dev
-
-# Deploy to preview
-vercel
-
-# Deploy to production
+# Production deploy
 vercel --prod
 ```
 
-**What to Consider:**
-- Secrets and API key management
-- Database migrations
-- Scaling and performance
-- Cost optimization
-- Disaster recovery and backups
-- Logging and monitoring
+### Database Operations
+
+```bash
+# Initialize database
+python -c "from src.database import init_database; init_database()"
+
+# Query database (interactive)
+python scripts/db_query.py
+
+# Reset database (WARNING: deletes all data)
+python -c "from src.database import init_database; init_database(reset=True)"
+```
+
+### Development
+
+```bash
+# Format code
+black src/ tests/
+
+# Lint code
+flake8 src/ tests/
+
+# Type checking
+mypy src/
+
+# Run interactive Python with imports
+python -i -c "from src import *"
+```
 
 ---
 
-#### ⚫ QA/Testing Engineer
+## 🧪 Testing
 
-**Your Mission:** Ensure code quality and comprehensive test coverage.
+### Running Tests
 
-**Files You'll Work With:**
-- `tests/` - All test files
-- `run_tests.py` - Test runner
-- `tests/conftest.py` - Test fixtures
-
-**Common Tasks:**
-1. **Improve Test Coverage**
-   - Identify untested code paths
-   - Add unit tests for new features
-   - Add integration tests for workflows
-   - Add end-to-end tests
-   
-2. **Performance Testing**
-   - Load testing API endpoints
-   - Benchmark critical algorithms
-   - Test with large datasets
-   
-3. **Test Automation**
-   - Setup CI/CD testing
-   - Automated regression testing
-   - Test result reporting
-   
-4. **Quality Metrics**
-   - Code coverage reports
-   - Test execution time
-   - Flaky test detection
-
-**Testing Your Changes:**
 ```bash
-# Run all tests with coverage
+# All tests with coverage (recommended)
 python run_tests.py all
 
-# Generate coverage report
-# View htmlcov/index.html
+# Fast (no coverage)
+python run_tests.py fast
+
+# Specific test file
+python run_tests.py tests/test_matching.py
+
+# Specific test function
+python run_tests.py tests/test_matching.py::test_find_matches
+
+# By marker
+python run_tests.py unit        # Unit tests only
+python run_tests.py integration # Integration tests only
+python run_tests.py slow        # Long-running tests
 ```
 
-**What to Consider:**
-- Test data quality (fixtures)
-- Test isolation (no shared state)
-- Mock external dependencies (APIs)
-- Test execution speed
-- Continuous integration
+### Test Coverage
 
----
+After running `python run_tests.py all`, open `htmlcov/index.html` in browser to see detailed coverage report.
 
-```
-ArbitrageBot.run_cycle():
-  │
-  1. Fetch Markets
-  ├─> kalshi/client.py.get_markets() → List[Market]
-  └─> polymarket/client.py.get_markets() → List[Market]
-  │
-  2. Match Markets
-  └─> matching/matcher.py.find_matches()
-      └─> List[(Market, Market, confidence_score)]
-  │
-  3. Score Opportunities
-  └─> matching/scorer.py.score_opportunities()
-      └─> List[Opportunity] (sorted by profit)
-  │
-  4. Select Best
-  └─> strategies/simple_arb.py.select_best_opportunity()
-      └─> Opportunity
-  │
-  5. Validate Trade
-  └─> execution/validator.py.validate()
-      └─> ValidationResult(valid=True/False, reason)
-  │
-  6. Execute (if valid)
-  └─> execution/executor.py.execute()
-      ├─> kalshi/client.py.place_order() [Paper mode]
-      ├─> polymarket/client.py.place_order() [Paper mode]
-      └─> database/repository.py.save_order()
-  │
-  7. Monitor Positions
-  └─> monitoring/tracker.py.update_positions()
-      └─> database/repository.py.save_position()
-```
+**Coverage Targets**:
+- Overall: > 80%
+- Critical paths (execution, validation): > 95%
+- Utilities: > 90%
 
-### Market Matching Algorithm
-
-Uses **fuzzy string matching** to find equivalent markets:
-
-- Normalizes titles (lowercase, remove punctuation)
-- Filters stop words ("the", "a", "will", etc.)
-- Calculates Jaccard similarity (word overlap)
-- Threshold: 0.5 (50% word overlap required)
-- Returns confidence score for each match
-
-### Opportunity Scoring
-
-Calculates profit accounting for fees and slippage:
+### Writing Tests
 
 ```python
-spread = |price_A - price_B|
-profit = spread - fee_A - fee_B - slippage
-profit_pct = profit / investment
+# tests/test_myfeature.py
+import pytest
+from src.mymodule import MyClass
 
-Fees:
-- Kalshi: 0.7%
-- Polymarket: 2.0%
-- Slippage: 1.0%
+@pytest.fixture
+def my_instance():
+    """Fixture for reusable test data"""
+    return MyClass(param="value")
+
+def test_my_function(my_instance):
+    """Test description"""
+    result = my_instance.do_something()
+    assert result == expected_value
 ```
 
-## Configuration
+**See**: `docs/TESTING.md` for comprehensive testing guide.
 
-Environment variables in `.env`:
+---
+
+## 📡 API Documentation
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/markets` | GET | List all markets |
+| `/api/opportunities` | GET | List arbitrage opportunities |
+| `/api/positions` | GET | Current open positions |
+| `/api/orders` | GET | Order history |
+| `/api/stats` | GET | Performance statistics |
+| `/api/scan-markets` | POST | Trigger market scan |
+| `/api/detect-opportunities` | POST | Find opportunities |
+| `/api/execute-trades` | POST | Execute approved opportunities |
+| `/api/manage-portfolio` | POST | Rebalance portfolio |
+
+### Example Request
 
 ```bash
-# Exchange API Keys
-KALSHI_API_KEY=your_key_here
-POLYMARKET_API_KEY=your_key_here
+# Get opportunities
+curl http://localhost:3000/api/opportunities
 
-# System Configuration
-PAPER_TRADING=true           # Paper trading mode (default)
-ENABLE_ALERTS=false          # Telegram alerts
-LOG_LEVEL=INFO               # Logging verbosity
-LOG_FILE=quantshit.log       # Log file path
+# Trigger scan
+curl -X POST http://localhost:3000/api/scan-markets \
+  -H "Content-Type: application/json" \
+  -d '{"min_volume": 1000}'
 ```
 
-**Note**: Trading parameters (min_volume, min_spread, profit thresholds, etc.) are now configured per-strategy in code at `src/strategies/config.py`, not via environment variables. This allows different strategies to have different parameters.
+### Response Format
 
-Business constants in `src/config/constants.py`:
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [...],
+    "count": 5
+  },
+  "timestamp": "2025-11-06T12:00:00Z"
+}
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```bash
+# API Keys
+KALSHI_API_KEY=your_kalshi_key
+POLYMARKET_API_KEY=your_polymarket_key
+
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+# Or for SQLite (default):
+# DATABASE_URL=sqlite:///quantshit.db
+
+# Trading
+PAPER_TRADING=true              # false for live trading
+ENABLE_ALERTS=false             # true to enable alerts
+
+# Alerts (if enabled)
+TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_CHAT_ID=your_chat_id
+
+# Logging
+LOG_LEVEL=INFO                  # DEBUG, INFO, WARNING, ERROR
+LOG_FILE=quantshit.log
+
+# Performance
+MAX_CONCURRENT_REQUESTS=5
+REQUEST_TIMEOUT_SECONDS=30
+```
+
+### Business Constants
+
+Edit `src/config/constants.py`:
 
 ```python
-MIN_PROFIT_THRESHOLD = 0.02   # 2% minimum profit
-MAX_POSITION_SIZE = 1000      # Max contracts per position
-FEE_KALSHI = 0.007           # 0.7% Kalshi fee
-FEE_POLYMARKET = 0.02        # 2% Polymarket fee
-SLIPPAGE_FACTOR = 0.01       # 1% slippage assumption
+# Fees
+FEE_KALSHI = 0.007              # 0.7%
+FEE_POLYMARKET = 0.02           # 2%
+
+# Thresholds
+MIN_PROFIT_THRESHOLD = 0.02     # 2% minimum profit
+TITLE_SIMILARITY_THRESHOLD = 0.5
+SLIPPAGE_FACTOR = 0.01          # 1%
+
+# Capital Management
+INITIAL_CAPITAL_PER_EXCHANGE = 10000
+MAX_POSITION_SIZE = 1000
+MIN_POSITION_SIZE = 10
 ```
 
-## Running the System
+---
 
-### CLI Mode (Single Cycle)
+## 🚀 Deployment
+
+### Vercel (Recommended)
 
 ```bash
-python main.py
+# Install Vercel CLI
+npm install -g vercel
+
+# Login
+vercel login
+
+# Deploy
+vercel --prod
 ```
 
-Runs one complete cycle: fetch markets → find opportunities → execute best trade
+### Environment Variables (Vercel)
 
-### API Server
+Set in Vercel dashboard or via CLI:
+```bash
+vercel env add KALSHI_API_KEY
+vercel env add POLYMARKET_API_KEY
+vercel env add DATABASE_URL
+```
+
+### Scheduled Tasks
+
+Configured in `vercel.json`:
+- Market scan runs daily at 12:00 UTC
+- Customize cron schedule as needed
+
+### Manual Deployment
 
 ```bash
-python api.py  # Starts on http://localhost:8000
+# Any server with Python 3.8+
+git clone <repo>
+cd quantshit
+pip install -r requirements.txt
+python -m src.main
 ```
 
-**Available Endpoints:**
+---
 
-- `GET /` - Dashboard UI
-- `POST /scan` - Scan for opportunities
-- `POST /execute` - Execute a trade
-- `POST /run-strategy` - Run full strategy cycle
-- `GET /dashboard/stats` - Portfolio statistics
+## 🤝 Contributing
 
-**Note:** API server currently has broken endpoints - needs fixing (see `api.py` issues in CLAUDE.md)
+We welcome contributions! Here's how:
 
-## Testing
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Write** tests for your changes
+4. **Ensure** all tests pass (`python run_tests.py all`)
+5. **Format** code (`black src/ tests/`)
+6. **Commit** with clear message (`git commit -m 'feat: add amazing feature'`)
+7. **Push** to your fork (`git push origin feature/amazing-feature`)
+8. **Open** a Pull Request
 
-⚠️ **Tests are currently broken** - they reference the old architecture that was removed.
+### Commit Message Convention
 
-```bash
-# Will fail until tests are updated
-python -m pytest tests/ -v
-
-# Individual test files (all need rewriting)
-python -m pytest tests/test_strategies.py -v
-python -m pytest tests/test_integration.py -v
+```
+feat: add new exchange support
+fix: correct profit calculation
+docs: update API documentation
+test: add integration tests
+refactor: simplify matching logic
+perf: optimize database queries
 ```
 
-See `docs/TESTING.md` for test suite documentation.
+### Code Review Process
 
-## Development Guide
-
-### Adding a New Exchange
-
-1. Create directory: `src/exchanges/newexchange/`
-2. Implement `client.py` extending `exchanges/base.py`
-3. Create `parser.py` to convert API data → `models.Market`
-4. Add `Exchange.NEWEXCHANGE` to `src/types.py`
-5. Wire into `src/main.py` initialization
-
-### Adding a New Strategy
-
-1. Create class extending `strategies/base.py:BaseStrategy`
-2. Implement `select_best_opportunity(opportunities) -> Opportunity`
-3. Instantiate in `src/main.py` instead of `SimpleArbitrageStrategy`
-
-### Enabling Real Trading
-
-⚠️ **Currently disabled** - only paper trading works
-
-1. Set `PAPER_TRADING=False` in `.env`
-2. Implement real API calls in `src/services/execution/executor.py:136-138`
-3. Add error handling for order failures, partial fills, rejections
-4. Test with small positions first
-
-## Key Design Patterns
-
-**Repository Pattern:** All data access through `Repository` class - easy to swap in-memory for SQL later
-
-**Strategy Pattern:** Multiple strategies by extending `BaseStrategy`
-
-**Single Responsibility:** Each module has one job:
-
-- `Matcher`: Find equivalent markets
-- `Scorer`: Calculate profitability
-- `Validator`: Check if trade is safe
-- `Executor`: Place orders
-- `Tracker`: Monitor positions
-- `Alerter`: Send notifications
-
-**Dependency Inversion:** Services depend on abstractions (Repository, BaseStrategy) not concrete implementations
-
-## Documentation
-
-- **`CLAUDE.md`** - Complete project overview, detailed TODO list, architecture notes
-- **`docs/MODULE_EXPLANATIONS.md`** - Theoretical design of clean architecture
-- **`docs/VISUAL_FLOW.md`** - Data flow diagrams and dependency rules
-- **`docs/TESTING.md`** - Test suite documentation
-- **`src/README.md`** - Refactor status and migration notes
-
-## Contributing
-
-1. Check `CLAUDE.md` for priority TODOs
-2. Pick a task from the TODO list
-3. Follow clean architecture principles (inner layers don't depend on outer layers)
-4. Add tests for new features
-5. Update documentation
-6. Submit PR
-
-**High Priority Areas:**
-
-- Fix Kalshi API integration (returns 0 markets)
-- Implement position creation/closing
-- Rewrite test suite for new architecture
-- Implement real order placement
-- Fix API server endpoints
+- All PRs require review
+- Tests must pass
+- Coverage should not decrease
+- Code must be formatted
 
 ---
 
-## Current Status
+## 📚 Additional Resources
 
-### ✅ Working
-
-- ✓ Clean architecture implemented with separation of concerns
-- ✓ Exchange clients for Kalshi and Polymarket
-- ✓ Market matching algorithm (fuzzy string matching)
-- ✓ Opportunity scoring with fees and slippage
-- ✓ Trade validation and risk checks
-- ✓ Paper trading mode (simulated execution)
-- ✓ Position tracking and P&L monitoring
-- ✓ API server with endpoints (Vercel serverless)
-- ✓ **Comprehensive test suite with 80+ tests**
-- ✓ **Test runner for easy testing (`python run_tests.py`)**
-
-### 🚧 In Progress / Known Issues
-
-- ⚠️ **Kalshi API returns 0 markets** (endpoint/auth issue)
-  - See `src/exchanges/kalshi/client.py:22`
-  - Needs investigation and fix
-  
-- ⚠️ **Position creation not implemented**
-  - See `src/main.py:182-184`
-  - Need to create Position from ExecutionResult
-  
-- ⚠️ **Position closing logic not implemented**
-  - See `src/main.py:242-245`
-  - Need to implement close decision + execution
-  
-- ⚠️ **Real order placement disabled**
-  - See `src/services/execution/executor.py:136-138`
-  - Only paper trading works currently
-  - **CRITICAL:** Test thoroughly before enabling
-  
-- ⚠️ **API server has broken endpoints**
-  - References non-existent methods from old architecture
-  - Needs refactoring to use new components
-
-### 📋 Next Steps
-
-1. Fix Kalshi API integration
-2. Implement position lifecycle (create → update → close)
-3. Thoroughly test with paper trading
-4. Implement live trading with small positions
-5. Add more comprehensive error handling
-6. Build web dashboard UI
-7. Add backtesting framework
-8. Expand to more exchanges
+- **Architecture**: `docs/MODULE_EXPLANATIONS.md`
+- **Database**: `docs/DATABASE_SYSTEM.md`
+- **Testing**: `docs/TESTING.md`
+- **Strategy Design**: `docs/STRATEGY_CONFIG_REFACTOR.md`
 
 ---
 
-## 📚 Additional Documentation
+## 📞 Support
 
-- **`CLAUDE.md`** - Complete project overview, detailed TODO list
-- **`docs/MODULE_EXPLANATIONS.md`** - Theoretical design of clean architecture
-- **`docs/VISUAL_FLOW.md`** - Data flow diagrams and dependency rules
-- **`docs/TESTING.md`** - Test suite documentation
-- **`docs/DATABASE_SYSTEM.md`** - Database architecture
-- **`docs/STRATEGY_CONFIG_REFACTOR.md`** - Strategy configuration changes
-
----
-
-## ⚠️ **Important Warnings**
-
-### Paper Trading Only
-
-This system currently operates in **simulation mode only**. Real trading requires:
-
-- ✓ Valid API keys for both exchanges
-- ✓ Implementation of real order placement logic
-- ✓ Thorough testing with small positions
-- ✓ Risk management review
-- ✓ Capital you can afford to lose
-
-### Before Going Live
-
-1. **Test extensively** with paper trading
-2. **Start small** - use minimum position sizes
-3. **Monitor closely** - watch for errors and unexpected behavior
-4. **Set limits** - implement stop losses and position size limits
-5. **Understand risks** - prediction markets can be volatile
-6. **Legal compliance** - ensure trading is legal in your jurisdiction
-
-### Risk Disclaimer
-
-Trading prediction markets involves substantial risk of loss. This software is provided "as is" without warranty. The developers are not responsible for any losses incurred. Use at your own risk.
-
----
-
-## 📞 Support & Contact
-
-- **Issues**: [GitHub Issues](https://github.com/Divyesh-Thirukonda/quantshit/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Divyesh-Thirukonda/quantshit/discussions)
-- **Pull Requests**: [GitHub PRs](https://github.com/Divyesh-Thirukonda/quantshit/pulls)
+- **Issues**: GitHub Issues
+- **Discussions**: GitHub Discussions
+- **Email**: [your-email]
 
 ---
 
 ## 📄 License
 
-[Add your license here]
+MIT License - see LICENSE file for details
 
 ---
 
-**Built with ❤️ using Clean Architecture principles**
+## 🎯 Roadmap
 
+- [ ] Add more exchanges (PredictIt, Manifold)
+- [ ] Advanced strategies (mean reversion, correlation)
+- [ ] Real-time websocket feeds
+- [ ] Machine learning for market matching
+- [ ] Mobile app
+- [ ] Backtesting framework
+- [ ] Paper trading competition
+
+---
+
+**Built with ❤️ by the Quantshit team**
+
+*Happy arbitraging! 🚀*
