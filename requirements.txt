@@ -1,10 +1,6 @@
-# Supabase client for database operations# No dependencies needed for Hello World
+# Supabase client for database operations
+supabase==2.3.4
 
-supabase==2.3.4matplotlib>=3.9.0
-
-pandas>=2.2.0
-
-# Required by supabasenumpy>=1.26.0
-
-postgrest==0.13.2scipy>=1.14.0
+# Required by supabase
+postgrest==0.13.2
 storage3==0.7.4
