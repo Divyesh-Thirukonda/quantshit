@@ -1,0 +1,32 @@
+{{
+
+  "version": 2,  "functions": {
+
+  "builds": [    "api/wsgi_app.py": {
+
+    {      "runtime": "@vercel/python@4.2.0"
+
+      "src": "api/index.py",    }
+
+      "use": "@vercel/python"  },
+
+    }  "routes": [
+
+  ],    {
+
+  "routes": [      "src": "/api/(.*)",
+
+    {      "dest": "/api/wsgi_app.py"
+
+      "src": "/(.*)",    },
+
+      "dest": "api/index.py"    {
+
+    }      "src": "/(.*)",
+
+  ]      "dest": "/api/wsgi_app.py"
+
+}    }
+
+  ]
+}

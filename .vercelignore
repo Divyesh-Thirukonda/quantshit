@@ -1,0 +1,18 @@
+# Exclude everything not needed
+src/
+tests/
+docs/
+examples/
+scripts/
+.git/
+.vscode/
+__pycache__/
+*.pyc
+*.log
+*.db
+*.md
+!README.md
+main.py
+api.py
+check_endpoints.py
+test_*.py
