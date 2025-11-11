@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 import requests
 
-from src.types import Exchange, OrderSide, OrderStatus, MarketStatus
+from src.fin_types import Exchange, OrderSide, OrderStatus, MarketStatus
 from src.models import Market, Order
 from src.exchanges.base import BaseExchangeClient
 from src.exchanges.kalshi.client import KalshiClient
@@ -425,22 +425,27 @@ class TestPolymarketClient:
 
     @patch('requests.get')
     def test_get_markets_success(self, mock_get):
-        """Test successful market data fetch from Polymarket"""
+        """Test successful market data fetch from Polymarket CLOB API"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [
-            {
-                "condition_id": "test-001",
-                "question": "Test Market",
-                "outcomes": ["Yes", "No"],
-                "outcomePrices": ["0.50", "0.50"],
-                "volume": 1000,
-                "liquidity": 500,
-                "closed": False,
-                "active": True,
-                "endDate": datetime.now().isoformat()
-            }
-        ]
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "condition_id": "test-001",
+                    "question": "Test Market",
+                    "tokens": [
+                        {"token_id": "1", "outcome": "Yes", "price": 0.50},
+                        {"token_id": "2", "outcome": "No", "price": 0.50}
+                    ],
+                    "closed": False,
+                    "active": True,
+                    "end_date_iso": datetime.now().isoformat()
+                }
+            ],
+            "next_cursor": "LTE=",
+            "limit": 1000,
+            "count": 1
+        }
         mock_get.return_value = mock_response
 
         client = PolymarketClient(api_key="test_key")
@@ -463,30 +468,58 @@ class TestPolymarketClient:
         assert markets == []
 
     @patch('requests.get')
-    def test_get_markets_with_dict_response(self, mock_get):
-        """Test handling Polymarket API response as dict with markets key"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "markets": [
+    def test_get_markets_pagination(self, mock_get):
+        """Test handling Polymarket CLOB API pagination"""
+        # First page
+        first_response = Mock()
+        first_response.status_code = 200
+        first_response.json.return_value = {
+            "data": [
                 {
                     "condition_id": "test-001",
-                    "question": "Test",
-                    "outcomes": ["Yes", "No"],
-                    "outcomePrices": ["0.50", "0.50"],
-                    "volume": 1000,
-                    "liquidity": 500,
+                    "question": "Test Market 1",
+                    "tokens": [
+                        {"token_id": "1", "outcome": "Yes", "price": 0.50},
+                        {"token_id": "2", "outcome": "No", "price": 0.50}
+                    ],
                     "closed": False,
                     "active": True,
-                    "endDate": datetime.now().isoformat()
+                    "end_date_iso": datetime.now().isoformat()
                 }
             ],
-            "next_cursor": None
+            "next_cursor": "MTAwMA==",
+            "limit": 1000,
+            "count": 1
         }
-        mock_get.return_value = mock_response
+        
+        # Second page (end)
+        second_response = Mock()
+        second_response.status_code = 200
+        second_response.json.return_value = {
+            "data": [
+                {
+                    "condition_id": "test-002",
+                    "question": "Test Market 2",
+                    "tokens": [
+                        {"token_id": "3", "outcome": "Yes", "price": 0.60},
+                        {"token_id": "4", "outcome": "No", "price": 0.40}
+                    ],
+                    "closed": False,
+                    "active": True,
+                    "end_date_iso": datetime.now().isoformat()
+                }
+            ],
+            "next_cursor": "LTE=",
+            "limit": 1000,
+            "count": 1
+        }
+        
+        mock_get.side_effect = [first_response, second_response]
 
         client = PolymarketClient(api_key="test_key")
         markets = client.get_markets(min_volume=0)
 
-        assert len(markets) == 1
+        assert len(markets) == 2
         assert markets[0].id == "test-001"
+        assert markets[1].id == "test-002"
+        assert mock_get.call_count == 2

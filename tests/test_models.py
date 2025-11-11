@@ -5,7 +5,7 @@ Tests validation, properties, edge cases, and error handling.
 import pytest
 from datetime import datetime, timedelta
 
-from src.types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
+from src.fin_types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
 from src.models import Market, Order, Position, Opportunity
 
 

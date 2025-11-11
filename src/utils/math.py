@@ -4,7 +4,7 @@ Reused in scorer, executor, monitor - one implementation.
 """
 
 from typing import Tuple
-from ..types import Price, Quantity, Probability
+from ..fin_types import Price, Quantity, Probability
 
 
 def calculate_profit(

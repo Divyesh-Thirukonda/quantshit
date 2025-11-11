@@ -12,7 +12,7 @@ from decimal import Decimal
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
+from src.fin_types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
 from src.models import Market, Order, Position, Opportunity
 from src.config import constants
 
@@ -472,8 +472,8 @@ def low_confidence_opportunity(sample_kalshi_market, sample_polymarket_market):
         outcome=Outcome.YES,
         spread=0.02,
         expected_profit=50.0,
-        expected_profit_pct=0.015,
-        confidence_score=0.3,  # Low confidence
+        expected_profit_pct=0.05,  # Above threshold but low confidence
+        confidence_score=0.3,  # Low confidence (below MIN_CONFIDENCE_SCORE of 0.6)
         recommended_size=100,
         max_size=500,
         timestamp=datetime.now(),
