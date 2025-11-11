@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import asyncio
 import os
 from pydantic import BaseModel
+from concurrent.futures import ThreadPoolExecutor
 
 from src.main import ArbitrageBot
 
@@ -24,6 +25,7 @@ app = FastAPI(
 
 # Global instances
 bot = None
+executor = ThreadPoolExecutor(max_workers=4)  # Thread pool for blocking operations
 
 class WebhookPayload(BaseModel):
     """Webhook payload for new market events"""
@@ -94,14 +96,15 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.post("/run-strategy")
 async def run_strategy():
     """Manually trigger a strategy run"""
     try:
-        bot.run_cycle()
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(executor, bot.run_cycle)
         return {"success": True, "message": "Strategy cycle completed"}
     except Exception as e:
         return JSONResponse(
@@ -113,8 +116,9 @@ async def run_strategy():
 async def get_markets():
     """Get current market data"""
     try:
-        # Fetch markets from both exchanges
-        kalshi_markets, polymarket_markets = bot._fetch_markets()
+        # Fetch markets from both exchanges (non-blocking)
+        loop = asyncio.get_event_loop()
+        kalshi_markets, polymarket_markets = await loop.run_in_executor(executor, bot.fetch_markets)
 
         markets_data = {
             "kalshi": [
@@ -148,8 +152,9 @@ async def get_markets():
 async def scan_opportunities(request: ScanRequest):
     """Scan for arbitrage opportunities with configurable parameters"""
     try:
-        # Fetch markets from exchanges
-        kalshi_markets, polymarket_markets = bot._fetch_markets()
+        # Fetch markets from exchanges (non-blocking)
+        loop = asyncio.get_event_loop()
+        kalshi_markets, polymarket_markets = await loop.run_in_executor(executor, bot.fetch_markets)
 
         # Filter by requested venues if specified
         if request.venues:
@@ -158,11 +163,15 @@ async def scan_opportunities(request: ScanRequest):
             if "polymarket" not in request.venues:
                 polymarket_markets = []
 
-        # Find matching markets
-        matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
+        # Find matching markets (non-blocking)
+        matched_pairs = await loop.run_in_executor(
+            executor, bot.matcher.find_matches, kalshi_markets, polymarket_markets
+        )
 
-        # Score opportunities
-        opportunities = bot.scorer.score_opportunities(matched_pairs)
+        # Score opportunities (non-blocking)
+        opportunities = await loop.run_in_executor(
+            executor, bot.scorer.score_opportunities, matched_pairs
+        )
 
         # Filter by minimum edge
         filtered_ops = [op for op in opportunities if op.expected_profit_pct >= request.min_edge]
@@ -209,8 +218,9 @@ async def scan_opportunities(request: ScanRequest):
 async def search_events(keyword: str, platforms: str = None, limit: int = 10):
     """Search for events across platforms"""
     try:
-        # Fetch all markets
-        kalshi_markets, polymarket_markets = bot._fetch_markets()
+        # Fetch all markets (non-blocking)
+        loop = asyncio.get_event_loop()
+        kalshi_markets, polymarket_markets = await loop.run_in_executor(executor, bot.fetch_markets)
 
         # Filter by keyword (case-insensitive)
         keyword_lower = keyword.lower()
@@ -292,13 +302,18 @@ async def execute_trade(
 async def get_dashboard_stats():
     """Get aggregated statistics for dashboard"""
     try:
-        # Fetch markets from both exchanges
-        kalshi_markets, polymarket_markets = bot._fetch_markets()
+        # Fetch markets from both exchanges (non-blocking)
+        loop = asyncio.get_event_loop()
+        kalshi_markets, polymarket_markets = await loop.run_in_executor(executor, bot.fetch_markets)
         total_markets = len(kalshi_markets) + len(polymarket_markets)
 
-        # Find matching markets and score opportunities
-        matched_pairs = bot.matcher.find_matches(kalshi_markets, polymarket_markets)
-        opportunities = bot.scorer.score_opportunities(matched_pairs)
+        # Find matching markets and score opportunities (non-blocking)
+        matched_pairs = await loop.run_in_executor(
+            executor, bot.matcher.find_matches, kalshi_markets, polymarket_markets
+        )
+        opportunities = await loop.run_in_executor(
+            executor, bot.scorer.score_opportunities, matched_pairs
+        )
 
         # Get repository stats
         stats = bot.repository.get_stats()
@@ -339,7 +354,7 @@ async def get_recent_trades(limit: int = 10):
         for order in orders[:limit]:
             trades.append({
                 "id": order.order_id,
-                "timestamp": order.created_at.isoformat() if hasattr(order.created_at, 'isoformat') else str(order.created_at),
+                "timestamp": order.timestamp.isoformat() if hasattr(order.timestamp, 'isoformat') else str(order.timestamp),
                 "type": "arbitrage",
                 "platform": order.exchange.value,
                 "market_id": order.market_id,
@@ -403,7 +418,9 @@ async def get_activity_feed(limit: int = 20):
         return {
             "success": True,
             "activities": activities,
-            "count": len(activities)
+            "count": len(activities),
+            "is_mock_data": True,
+            "message": "Demo data - real activity feed not yet implemented"
         }
     except Exception as e:
         return JSONResponse(
