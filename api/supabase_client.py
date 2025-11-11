@@ -19,7 +19,16 @@ class SupabaseClient:
         if not url or not key:
             raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
         
-        self.client: Client = create_client(url, key)
+        # Create client with explicit options to avoid proxy parameter issues
+        try:
+            # Try with options parameter
+            self.client: Client = create_client(
+                supabase_url=url,
+                supabase_key=key
+            )
+        except (TypeError, AttributeError):
+            # Fallback to simple approach
+            self.client: Client = create_client(url, key)
     
     # ========== Markets ==========
     
