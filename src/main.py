@@ -66,10 +66,7 @@ class ArbitrageBot:
             similarity_threshold=constants.TITLE_SIMILARITY_THRESHOLD
         )
         self.scorer = Scorer(
-            min_profit_threshold=constants.MIN_PROFIT_THRESHOLD,
-            kalshi_fee=constants.FEE_KALSHI,
-            polymarket_fee=constants.FEE_POLYMARKET,
-            slippage=constants.SLIPPAGE_FACTOR
+            min_profit_threshold=constants.MIN_PROFIT_THRESHOLD
         )
         self.validator = Validator(
             available_capital=constants.INITIAL_CAPITAL_PER_EXCHANGE * 2
