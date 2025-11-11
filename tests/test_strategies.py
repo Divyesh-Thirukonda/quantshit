@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-from src.types import Exchange, MarketStatus, Outcome
+from src.fin_types import Exchange, MarketStatus, Outcome
 from src.models import Market, Opportunity, Position, Order
 from src.strategies.simple_arb import SimpleArbitrageStrategy
 from src.config import constants

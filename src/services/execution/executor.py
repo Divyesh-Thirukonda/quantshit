@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 from ...models import Opportunity, Order, Position
-from ...types import Exchange, OrderSide, OrderStatus, Outcome
+from ...fin_types import Exchange, OrderSide, OrderStatus, Outcome
 from ...config import settings
 from ...utils import get_logger
 

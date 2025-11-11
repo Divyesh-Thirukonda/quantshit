@@ -5,7 +5,7 @@ Runs continuously, separate from execution.
 
 from typing import List, Dict
 from ...models import Position
-from ...types import Exchange
+from ...fin_types import Exchange
 from ...config import constants
 from ...utils import get_logger
 

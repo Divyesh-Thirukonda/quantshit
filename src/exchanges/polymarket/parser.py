@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from ...models import Market, Order
-from ...types import Exchange, MarketStatus, OrderStatus, OrderSide
+from ...fin_types import Exchange, MarketStatus, OrderStatus, OrderSide
 
 
 def parse_market(market_data: Dict[str, Any]) -> Market:
@@ -58,9 +58,21 @@ def parse_market(market_data: Dict[str, Any]) -> Market:
         yes_price = yes_price / total
         no_price = no_price / total
 
-    # Extract volume and liquidity
-    volume = float(market_data.get('volume', 0.0))
-    liquidity = float(market_data.get('liquidity', 0.0))
+    # Extract volume and liquidity (may not be present in CLOB API)
+    volume = 0.0
+    liquidity = 0.0
+    
+    # Try different field names for volume
+    if 'volume' in market_data:
+        volume = float(market_data['volume'])
+    elif 'volumeNum' in market_data:
+        volume = float(market_data['volumeNum'])
+    
+    # Try different field names for liquidity  
+    if 'liquidity' in market_data:
+        liquidity = float(market_data['liquidity'])
+    elif 'liquidityNum' in market_data:
+        liquidity = float(market_data['liquidityNum'])
 
     # Parse expiry/end date
     expiry = None

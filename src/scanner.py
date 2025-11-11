@@ -46,12 +46,7 @@ class MarketScanner:
 
         # Initialize matching and scoring services
         self.matcher = Matcher(similarity_threshold=0.5)
-        self.scorer = Scorer(
-            min_profit_threshold=0.02,
-            kalshi_fee=0.007,
-            polymarket_fee=0.02,
-            slippage=0.01
-        )
+        self.scorer = Scorer(min_profit_threshold=0.02)
 
         # Initialize strategy for filtering
         if strategy_config is None:

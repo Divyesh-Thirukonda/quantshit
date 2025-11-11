@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from ...models import Market, Order
-from ...types import Exchange, MarketStatus, OrderStatus, OrderSide
+from ...fin_types import Exchange, MarketStatus, OrderStatus, OrderSide
 
 
 def parse_market(market_data: Dict[str, Any]) -> Market:
@@ -40,7 +40,8 @@ def parse_market(market_data: Dict[str, Any]) -> Market:
     volume = (volume_contracts * notional_value) / 100.0
 
     # Extract liquidity (already in dollars in liquidity_dollars field)
-    liquidity = float(market_data.get('liquidity_dollars', '0').replace('$', ''))
+    # Note: Kalshi sometimes returns negative liquidity, clamp to 0
+    liquidity = max(0.0, float(market_data.get('liquidity_dollars', '0').replace('$', '')))
 
     # Parse expiry date
     expiry = None

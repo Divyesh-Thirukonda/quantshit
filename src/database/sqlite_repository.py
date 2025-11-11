@@ -9,7 +9,7 @@ from datetime import datetime
 from contextlib import contextmanager
 
 from ..models import Market, Opportunity, Order, Position
-from ..types import Exchange, MarketStatus, OrderStatus, OrderSide, Outcome
+from ..fin_types import Exchange, MarketStatus, OrderStatus, OrderSide, Outcome
 from ..utils import get_logger
 
 logger = get_logger(__name__)

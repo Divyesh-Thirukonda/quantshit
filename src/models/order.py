@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from ..types import Exchange, OrderSide, OrderStatus, Price, Quantity, Outcome
+from ..fin_types import Exchange, OrderSide, OrderStatus, Price, Quantity, Outcome
 
 
 @dataclass

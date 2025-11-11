@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from ..types import Exchange, MarketStatus, Price, Volume
+from ..fin_types import Exchange, MarketStatus, Price, Volume
 
 
 @dataclass

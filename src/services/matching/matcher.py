@@ -1,36 +1,45 @@
 """
 Matcher service - finds markets on both exchanges about the same event.
-Core arbitrage logic - needs to be separate for testing and tuning.
+Refactored to follow SOLID principles and use composition.
 """
 
-import re
 from typing import List, Tuple
-from ...models import Market
+
 from ...config import constants
+from ...models import Market
 from ...utils import get_logger
+from .similarity import JaccardSimilarity, SimilarityStrategy
 
 logger = get_logger(__name__)
 
 
 class Matcher:
     """
-    Find equivalent markets across exchanges using fuzzy matching.
+    Find equivalent markets across exchanges using configurable similarity strategies.
     """
 
-    def __init__(self, similarity_threshold: float = constants.TITLE_SIMILARITY_THRESHOLD):
+    def __init__(
+        self,
+        similarity_strategy: SimilarityStrategy = None,
+        similarity_threshold: float = constants.TITLE_SIMILARITY_THRESHOLD,
+    ):
         """
-        Initialize matcher.
+        Initialize matcher with similarity strategy.
+        Dependency Injection: strategy is configurable and testable.
 
         Args:
+            similarity_strategy: Strategy for calculating similarity (default: JaccardSimilarity)
             similarity_threshold: Minimum similarity score (0-1) to consider markets equivalent
         """
+        self.similarity_strategy = similarity_strategy or JaccardSimilarity()
         self.similarity_threshold = similarity_threshold
-        logger.info(f"Matcher initialized with similarity threshold: {similarity_threshold}")
+        logger.info(
+            f"Matcher initialized with {self.similarity_strategy.__class__.__name__} "
+            f"and threshold {similarity_threshold}"
+        )
 
     def find_matches(
-        self,
-        kalshi_markets: List[Market],
-        polymarket_markets: List[Market]
+        self, kalshi_markets: List[Market], polymarket_markets: List[Market]
     ) -> List[Tuple[Market, Market, float]]:
         """
         Find matching markets between Kalshi and Polymarket.
@@ -44,12 +53,17 @@ class Matcher:
         """
         matches = []
 
-        logger.info(f"Matching {len(kalshi_markets)} Kalshi markets with {len(polymarket_markets)} Polymarket markets")
+        logger.info(
+            f"Matching {len(kalshi_markets)} Kalshi markets with "
+            f"{len(polymarket_markets)} Polymarket markets"
+        )
 
         for kalshi_market in kalshi_markets:
             for poly_market in polymarket_markets:
-                # Calculate similarity score
-                similarity = self._calculate_similarity(kalshi_market, poly_market)
+                # Delegate similarity calculation to strategy
+                similarity = self.similarity_strategy.calculate(
+                    kalshi_market, poly_market
+                )
 
                 if similarity >= self.similarity_threshold:
                     matches.append((kalshi_market, poly_market, similarity))
@@ -60,103 +74,3 @@ class Matcher:
 
         logger.info(f"Found {len(matches)} market matches")
         return matches
-
-    def _calculate_similarity(self, market1: Market, market2: Market) -> float:
-        """
-        Calculate similarity score between two markets.
-        Uses word-based Jaccard similarity on normalized titles.
-
-        Args:
-            market1: First market
-            market2: Second market
-
-        Returns:
-            Similarity score between 0 and 1
-        """
-        # Normalize titles
-        title1_normalized = self._normalize_title(market1.title)
-        title2_normalized = self._normalize_title(market2.title)
-
-        # Split into words
-        words1 = set(title1_normalized.split())
-        words2 = set(title2_normalized.split())
-
-        # Remove common stop words
-        stop_words = {
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to',
-            'for', 'of', 'with', 'by', 'will', 'be', 'is', 'are', 'was', 'were'
-        }
-        words1 = words1 - stop_words
-        words2 = words2 - stop_words
-
-        # Handle empty word sets
-        if not words1 or not words2:
-            return 0.0
-
-        # Jaccard similarity: intersection / union
-        intersection = len(words1.intersection(words2))
-        union = len(words1.union(words2))
-
-        similarity = intersection / union if union > 0 else 0.0
-
-        # Bonus for matching key terms (can be extended)
-        key_terms_bonus = self._check_key_terms_match(words1, words2)
-        similarity = min(1.0, similarity + key_terms_bonus)
-
-        return similarity
-
-    def _normalize_title(self, title: str) -> str:
-        """
-        Normalize market title for comparison.
-        Remove special characters, convert to lowercase.
-
-        Args:
-            title: Raw market title
-
-        Returns:
-            Normalized title
-        """
-        # Convert to lowercase
-        normalized = title.lower()
-
-        # Remove special characters but keep spaces
-        normalized = re.sub(r'[^a-z0-9\s]', '', normalized)
-
-        # Normalize whitespace
-        normalized = ' '.join(normalized.split())
-
-        return normalized
-
-    def _check_key_terms_match(self, words1: set, words2: set) -> float:
-        """
-        Check if markets share important key terms.
-        Can boost similarity for matches on names, dates, specific events.
-
-        Args:
-            words1: Word set from first market
-            words2: Word set from second market
-
-        Returns:
-            Bonus score (0-0.2)
-        """
-        # Define important terms that indicate strong match
-        # This is a simple version - can be extended with NLP
-        key_terms = {
-            # Political names
-            'trump', 'biden', 'harris', 'desantis',
-            # Sports teams
-            'chiefs', 'eagles', '49ers', 'ravens',
-            # Companies
-            'tesla', 'apple', 'google', 'microsoft',
-            # Events
-            'election', 'championship', 'olympics'
-        }
-
-        # Check if both markets mention the same key terms
-        key_matches = 0
-        for term in key_terms:
-            if term in words1 and term in words2:
-                key_matches += 1
-
-        # Small bonus per key term match (max 0.2)
-        return min(0.2, key_matches * 0.1)

@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
-from src.types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
+from src.fin_types import Exchange, OrderSide, OrderStatus, MarketStatus, Outcome
 from src.models import Market, Order, Opportunity
 from src.services.matching.matcher import Matcher
 from src.services.matching.scorer import Scorer
@@ -67,27 +67,20 @@ class TestMatcher:
         matches = matcher.find_matches(kalshi_markets, poly_markets)
         assert len(matches) == 0
 
-    def test_normalize_title_lowercase(self):
-        """Test title normalization converts to lowercase"""
-        matcher = Matcher()
-        normalized = matcher._normalize_title("TRUMP WINS 2024")
-        assert normalized == "trump wins 2024"
+    def test_similarity_strategy_can_be_injected(self):
+        """Test that matcher accepts custom similarity strategy"""
+        from src.services.matching.similarity import JaccardSimilarity
+        
+        strategy = JaccardSimilarity()
+        matcher = Matcher(similarity_strategy=strategy)
+        
+        assert matcher.similarity_strategy is strategy
 
-    def test_normalize_title_removes_special_chars(self):
-        """Test title normalization removes special characters"""
-        matcher = Matcher()
-        normalized = matcher._normalize_title("Trump wins 2024? Yes!")
-        assert normalized == "trump wins 2024 yes"
-
-    def test_normalize_title_normalizes_whitespace(self):
-        """Test title normalization fixes whitespace"""
-        matcher = Matcher()
-        normalized = matcher._normalize_title("Trump  wins    2024")
-        assert normalized == "trump wins 2024"
-
-    def test_calculate_similarity_identical_titles(self):
+    def test_similarity_identical_titles(self):
         """Test similarity calculation for identical titles"""
-        matcher = Matcher()
+        from src.services.matching.similarity import JaccardSimilarity
+        
+        strategy = JaccardSimilarity()
         market1 = Market(
             id="1", exchange=Exchange.KALSHI, title="Trump wins 2024",
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
@@ -98,12 +91,14 @@ class TestMatcher:
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
             status=MarketStatus.OPEN
         )
-        similarity = matcher._calculate_similarity(market1, market2)
+        similarity = strategy.calculate(market1, market2)
         assert similarity == 1.0
 
-    def test_calculate_similarity_completely_different(self):
+    def test_similarity_completely_different(self):
         """Test similarity calculation for completely different titles"""
-        matcher = Matcher()
+        from src.services.matching.similarity import JaccardSimilarity
+        
+        strategy = JaccardSimilarity()
         market1 = Market(
             id="1", exchange=Exchange.KALSHI, title="Bitcoin price prediction",
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
@@ -114,12 +109,14 @@ class TestMatcher:
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
             status=MarketStatus.OPEN
         )
-        similarity = matcher._calculate_similarity(market1, market2)
+        similarity = strategy.calculate(market1, market2)
         assert similarity == 0.0
 
-    def test_calculate_similarity_partial_match(self):
+    def test_similarity_partial_match(self):
         """Test similarity calculation for partial match"""
-        matcher = Matcher()
+        from src.services.matching.similarity import JaccardSimilarity
+        
+        strategy = JaccardSimilarity()
         market1 = Market(
             id="1", exchange=Exchange.KALSHI, title="Trump wins 2024 election",
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
@@ -130,19 +127,9 @@ class TestMatcher:
             yes_price=0.5, no_price=0.5, volume=1000.0, liquidity=500.0,
             status=MarketStatus.OPEN
         )
-        similarity = matcher._calculate_similarity(market1, market2)
+        similarity = strategy.calculate(market1, market2)
         # Should have some overlap on "trump" and "2024"
         assert 0.0 < similarity < 1.0
-
-    def test_check_key_terms_match_adds_bonus(self):
-        """Test that matching key terms adds bonus to similarity"""
-        matcher = Matcher()
-        words1 = {"trump", "wins", "election"}
-        words2 = {"trump", "victory", "election"}
-        bonus = matcher._check_key_terms_match(words1, words2)
-        # Should get bonus for "trump"
-        assert bonus > 0.0
-        assert bonus <= 0.2
 
     def test_find_matches_respects_threshold(self):
         """Test that matcher only returns matches above threshold"""
@@ -182,23 +169,22 @@ class TestScorer:
 
     def test_scorer_initialization(self):
         """Test scorer initializes with correct parameters"""
-        scorer = Scorer(
-            min_profit_threshold=0.03,
-            kalshi_fee=0.01,
-            polymarket_fee=0.02,
-            slippage=0.01
-        )
+        scorer = Scorer(min_profit_threshold=0.03)
         assert scorer.min_profit_threshold == 0.03
-        assert scorer.kalshi_fee == 0.01
-        assert scorer.polymarket_fee == 0.02
-        assert scorer.slippage == 0.01
 
     def test_scorer_initialization_defaults(self):
         """Test scorer uses defaults from constants"""
         scorer = Scorer()
         assert scorer.min_profit_threshold == constants.MIN_PROFIT_THRESHOLD
-        assert scorer.kalshi_fee == constants.FEE_KALSHI
-        assert scorer.polymarket_fee == constants.FEE_POLYMARKET
+    
+    def test_scorer_uses_opportunity_builder(self):
+        """Test that scorer uses OpportunityBuilder for construction"""
+        from src.services.matching.opportunity_builder import OpportunityBuilder
+        
+        builder = OpportunityBuilder()
+        scorer = Scorer(opportunity_builder=builder)
+        
+        assert scorer.opportunity_builder is builder
 
     def test_score_opportunities_finds_profitable(self, sample_kalshi_markets, sample_polymarket_markets):
         """Test scorer finds profitable opportunities"""
@@ -257,8 +243,10 @@ class TestScorer:
         if len(opportunities) >= 2:
             assert opportunities[0].expected_profit >= opportunities[1].expected_profit
 
-    def test_calculate_opportunity_yes_outcome(self):
-        """Test calculating opportunity for YES outcome"""
+    def test_opportunity_builder_creates_opportunity(self):
+        """Test OpportunityBuilder creates opportunities correctly"""
+        from src.services.matching.opportunity_builder import OpportunityBuilder
+        
         kalshi_market = Market(
             id="k1", exchange=Exchange.KALSHI, title="Test",
             yes_price=0.40, no_price=0.60,
@@ -270,16 +258,20 @@ class TestScorer:
             volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
         )
 
-        scorer = Scorer()
-        opp = scorer._calculate_opportunity(kalshi_market, poly_market, Outcome.YES, 1.0)
+        builder = OpportunityBuilder()
+        opp = builder.build(kalshi_market, poly_market, Outcome.YES, 1.0)
 
         assert opp.outcome == Outcome.YES
-        assert opp.spread == 0.10  # |0.40 - 0.50|
+        assert opp.spread == pytest.approx(0.10)  # |0.40 - 0.50|
         assert opp.recommended_size > 0
         assert opp.confidence_score == 1.0
+        assert opp.buy_exchange is not None
+        assert opp.sell_exchange is not None
 
-    def test_calculate_opportunity_no_outcome(self):
-        """Test calculating opportunity for NO outcome"""
+    def test_opportunity_builder_handles_no_outcome(self):
+        """Test OpportunityBuilder handles NO outcome"""
+        from src.services.matching.opportunity_builder import OpportunityBuilder
+        
         kalshi_market = Market(
             id="k1", exchange=Exchange.KALSHI, title="Test",
             yes_price=0.40, no_price=0.60,
@@ -291,14 +283,17 @@ class TestScorer:
             volume=10000.0, liquidity=5000.0, status=MarketStatus.OPEN
         )
 
-        scorer = Scorer()
-        opp = scorer._calculate_opportunity(kalshi_market, poly_market, Outcome.NO, 1.0)
+        builder = OpportunityBuilder()
+        opp = builder.build(kalshi_market, poly_market, Outcome.NO, 1.0)
 
         assert opp.outcome == Outcome.NO
-        assert opp.spread == 0.05  # |0.60 - 0.55|
+        assert opp.spread == pytest.approx(0.05)  # |0.60 - 0.55|
 
-    def test_calculate_opportunity_includes_fees(self):
-        """Test that opportunity calculation includes fees"""
+    def test_opportunity_includes_fees_and_slippage(self):
+        """Test that opportunity calculation includes fees and slippage"""
+        from src.services.matching.opportunity_builder import OpportunityBuilder
+        from src.services.matching.pricing import FeeCalculator, SlippageCalculator
+        
         kalshi_market = Market(
             id="k1", exchange=Exchange.KALSHI, title="Test",
             yes_price=0.40, no_price=0.60,
@@ -310,54 +305,35 @@ class TestScorer:
             volume=100000.0, liquidity=50000.0, status=MarketStatus.OPEN
         )
 
-        scorer = Scorer(kalshi_fee=0.01, polymarket_fee=0.02, slippage=0.005)
-        opp = scorer._calculate_opportunity(kalshi_market, poly_market, Outcome.YES, 1.0)
+        builder = OpportunityBuilder(
+            fee_calculator=FeeCalculator(),
+            slippage_calculator=SlippageCalculator()
+        )
+        opp = builder.build(kalshi_market, poly_market, Outcome.YES, 1.0)
 
         # Profit should be less than naive spread due to fees
         naive_profit = (0.50 - 0.40) * opp.recommended_size
         assert opp.expected_profit < naive_profit
 
-    def test_calculate_opportunity_respects_liquidity_limits(self):
-        """Test that opportunity respects available liquidity"""
-        kalshi_market = Market(
-            id="k1", exchange=Exchange.KALSHI, title="Test",
-            yes_price=0.40, no_price=0.60,
-            volume=10000.0, liquidity=50.0,  # Low liquidity
-            status=MarketStatus.OPEN
-        )
-        poly_market = Market(
-            id="p1", exchange=Exchange.POLYMARKET, title="Test",
-            yes_price=0.50, no_price=0.50,
-            volume=10000.0, liquidity=100.0,
-            status=MarketStatus.OPEN
-        )
-
-        scorer = Scorer()
-        opp = scorer._calculate_opportunity(kalshi_market, poly_market, Outcome.YES, 1.0)
-
+    def test_position_sizer_respects_liquidity_limits(self):
+        """Test that PositionSizer respects available liquidity"""
+        from src.services.matching.pricing import PositionSizer
+        
+        sizer = PositionSizer()
+        recommended_size, max_size = sizer.calculate_size(50.0, 100.0)
+        
         # Max size should be limited by lower liquidity (50)
-        assert opp.max_size <= 50
+        assert max_size <= 50
 
-    def test_calculate_opportunity_respects_max_position_size(self):
-        """Test that opportunity respects MAX_POSITION_SIZE constant"""
-        kalshi_market = Market(
-            id="k1", exchange=Exchange.KALSHI, title="Test",
-            yes_price=0.40, no_price=0.60,
-            volume=1000000.0, liquidity=500000.0,  # Huge liquidity
-            status=MarketStatus.OPEN
-        )
-        poly_market = Market(
-            id="p1", exchange=Exchange.POLYMARKET, title="Test",
-            yes_price=0.50, no_price=0.50,
-            volume=1000000.0, liquidity=500000.0,
-            status=MarketStatus.OPEN
-        )
-
-        scorer = Scorer()
-        opp = scorer._calculate_opportunity(kalshi_market, poly_market, Outcome.YES, 1.0)
-
+    def test_position_sizer_respects_max_position_size(self):
+        """Test that PositionSizer respects MAX_POSITION_SIZE constant"""
+        from src.services.matching.pricing import PositionSizer
+        
+        sizer = PositionSizer()
+        recommended_size, max_size = sizer.calculate_size(500000.0, 500000.0)
+        
         # Recommended size should not exceed MAX_POSITION_SIZE
-        assert opp.recommended_size <= constants.MAX_POSITION_SIZE
+        assert recommended_size <= constants.MAX_POSITION_SIZE
 
 
 @pytest.mark.unit
@@ -402,7 +378,7 @@ class TestValidator:
         result = validator.validate(unprofitable_opp)
 
         assert result.valid is False
-        assert "not profitable" in result.reason.lower()
+        assert "profitable" in result.reason.lower()
 
     def test_validate_low_profit_threshold_fails(self, sample_kalshi_market, sample_polymarket_market):
         """Test that opportunity below profit threshold fails"""

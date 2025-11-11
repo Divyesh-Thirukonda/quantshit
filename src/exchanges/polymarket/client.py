@@ -9,7 +9,7 @@ from datetime import datetime
 
 from ..base import BaseExchangeClient
 from ...models import Market, Order
-from ...types import Exchange, OrderSide, OrderStatus
+from ...fin_types import Exchange, OrderSide, OrderStatus
 from ...utils import get_logger
 from .parser import parse_market, parse_order
 
@@ -35,35 +35,60 @@ class PolymarketClient(BaseExchangeClient):
         if api_key:
             self.session.headers.update(self._get_auth_headers())
 
-    def get_markets(self, min_volume: float = 0) -> List[Market]:
+    def get_markets(
+        self, 
+        min_volume: float = 0,
+        min_liquidity: float = 0,
+        max_volume: float = None,
+        max_liquidity: float = None
+    ) -> List[Market]:
         """
-        Fetch available markets from Polymarket using cursor pagination.
+        Fetch available markets from Polymarket CLOB API using cursor pagination.
 
         Args:
             min_volume: Minimum volume filter (in dollars)
+            min_liquidity: Minimum liquidity filter (in dollars)
+            max_volume: Maximum volume filter (in dollars)
+            max_liquidity: Maximum liquidity filter (in dollars)
 
         Returns:
             List of Market objects
+            
+        Note:
+            Volume/liquidity filters are sent to the API but may not be supported
+            on the public endpoint. The API will return all markets regardless of
+            these filters. The CLOB API also doesn't return volume/liquidity data
+            in the response, so Market objects will have volume=0 and liquidity=0.
         """
         try:
-            logger.info(f"Fetching markets from Polymarket (min_volume: ${min_volume})")
+            logger.info(
+                f"Fetching markets from Polymarket "
+                f"(volume: ${min_volume:,.0f}-{max_volume if max_volume else '∞'}, "
+                f"liquidity: ${min_liquidity:,.0f}-{max_liquidity if max_liquidity else '∞'})"
+            )
 
             markets = []
-            next_cursor = None
+            next_cursor = ""  # Empty string means start from beginning
             page = 1
             total_fetched = 0
 
-            # Use Gamma API for market data (public endpoint)
-            url = f"{self.GAMMA_URL}/markets"
+            # Use CLOB API for market data
+            url = f"{self.BASE_URL}/markets"
 
-            # Paginate through all available markets
+            # Paginate through all available markets using cursor
             while True:
-                params = {
-                    'limit': 100,  # Max per page
-                    'active': 'true'
-                }
-
-                # Add cursor for pagination if available
+                params = {'limit': 1000}  # CLOB API supports up to 1000 per page
+                
+                # Add API-level filters to reduce data transfer
+                if min_volume > 0:
+                    params['volume_num_min'] = min_volume
+                if max_volume:
+                    params['volume_num_max'] = max_volume
+                if min_liquidity > 0:
+                    params['liquidity_num_min'] = min_liquidity
+                if max_liquidity:
+                    params['liquidity_num_max'] = max_liquidity
+                
                 if next_cursor:
                     params['next_cursor'] = next_cursor
 
@@ -73,38 +98,28 @@ class PolymarketClient(BaseExchangeClient):
                 response.raise_for_status()
                 data = response.json()
 
-                # Polymarket returns an array of markets or dict with 'markets' key
-                market_list = data if isinstance(data, list) else data.get('markets', [])
+                # CLOB API returns dict with 'data', 'next_cursor', 'count', 'limit'
+                market_list = data.get('data', [])
                 total_fetched += len(market_list)
+                next_cursor = data.get('next_cursor', '')
 
-                logger.debug(f"Page {page}: Received {len(market_list)} markets")
+                logger.debug(f"Page {page}: Received {len(market_list)} markets (next_cursor: {next_cursor})")
 
-                # Parse markets from this page
+                # Parse markets from this page (API has already filtered by volume/liquidity)
                 for market_data in market_list:
                     try:
                         market = parse_market(market_data)
-                        if market and market.volume >= min_volume:
+                        if market:
                             markets.append(market)
                     except Exception as e:
                         logger.warning(f"Failed to parse Polymarket market: {e}")
                         continue
 
-                # Check for next page cursor
-                if isinstance(data, dict):
-                    next_cursor = data.get('next_cursor')
-                else:
-                    next_cursor = None
-
-                # Break if no more pages or no markets returned
-                if not next_cursor or len(market_list) == 0:
+                # Break if we've reached the end ('LTE=' means end of pagination)
+                if not next_cursor or next_cursor == 'LTE=' or len(market_list) == 0:
                     break
 
                 page += 1
-
-                # Safety limit to prevent infinite loops (adjust as needed)
-                if page > 100:
-                    logger.warning(f"Reached maximum page limit (100 pages, {total_fetched} total markets)")
-                    break
 
             logger.info(f"Fetched {len(markets)} markets from Polymarket across {page} pages (total raw: {total_fetched})")
             return markets
