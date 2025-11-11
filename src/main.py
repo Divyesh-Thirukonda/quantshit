@@ -121,7 +121,7 @@ class ArbitrageBot:
         try:
             # Step 1: Fetch markets
             logger.info("=� Step 1: Fetching markets from exchanges...")
-            kalshi_markets, polymarket_markets = self._fetch_markets()
+            kalshi_markets, polymarket_markets = self.fetch_markets()
             logger.info(f"  Kalshi: {len(kalshi_markets)} markets")
             logger.info(f"  Polymarket: {len(polymarket_markets)} markets")
 
@@ -216,7 +216,7 @@ class ArbitrageBot:
             logger.error(f"Error in cycle #{self.cycle_count}: {e}", exc_info=True)
             self.alerter.alert_error(str(e), context=f"Cycle #{self.cycle_count}")
 
-    def _fetch_markets(self) -> tuple[List[Market], List[Market]]:
+    def fetch_markets(self) -> tuple[List[Market], List[Market]]:
         """
         Fetch markets from both exchanges using the exchange clients.
         Uses min_volume from the strategy configuration.

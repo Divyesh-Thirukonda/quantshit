@@ -235,11 +235,13 @@ class Repository:
     # Statistics
     def get_stats(self) -> Dict:
         """Get repository statistics"""
+        filled_orders = [o for o in self.orders.values() if o.is_filled]
         return {
             'total_opportunities': len(self.opportunities),
             'total_orders': len(self.orders),
             'total_positions': len(self.positions),
-            'filled_orders': len([o for o in self.orders.values() if o.is_filled])
+            'filled_orders': len(filled_orders),
+            'total_trades': len(filled_orders)  # Alias for filled_orders
         }
 
     def clear_all(self):
