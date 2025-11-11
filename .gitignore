@@ -39,3 +39,20 @@ env.bak/
 venv.bak/
 .vercel
 .DS_STORE
+
+# Database files
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.log
+quantshit.db
+quantshit.log
+
+# Scanner output
+scanner_output_*.json
+scanner_output_*.txt
+
+# Temporary files
+QUICK_START.txt
+sqlite:/
