@@ -5,8 +5,8 @@ Handles all database operations for the arbitrage trading bot
 
 import os
 from typing import List, Dict, Any, Optional
-from supabase import create_client, Client
 from datetime import datetime
+from supabase import create_client, Client
 
 class SupabaseClient:
     """Client for interacting with Supabase database"""

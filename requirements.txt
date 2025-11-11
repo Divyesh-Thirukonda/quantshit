@@ -1,5 +1,5 @@
 # Supabase client for database operations
-supabase==2.3.4
+supabase==2.7.4
 
 # Required by supabase
 postgrest==0.13.2
