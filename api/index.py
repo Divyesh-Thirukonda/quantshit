@@ -12,24 +12,20 @@ from urllib.parse import urlparse, parse_qs
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-try:
-    from .supabase_client import SupabaseClient
-    from api_handlers import (
-        scan_markets_handler,
-        detect_opportunities_handler,
-        manage_portfolio_handler,
-        execute_trades_handler,
-        get_markets_handler,
-        get_opportunities_handler,
-        get_positions_handler,
-        get_orders_handler,
-        get_stats_handler,
-        get_scan_logs_handler
-    )
-except Exception as e:
-    # Fallback for development
-    print(f"Import warning: {e}")
-    SupabaseClient = None
+# Import database client and handlers
+from api.supabase_client import SupabaseClient
+from api.api_handlers import (
+    scan_markets_handler,
+    detect_opportunities_handler,
+    manage_portfolio_handler,
+    execute_trades_handler,
+    get_markets_handler,
+    get_opportunities_handler,
+    get_positions_handler,
+    get_orders_handler,
+    get_stats_handler,
+    get_scan_logs_handler
+)
 
 class handler(BaseHTTPRequestHandler):
     """Main API handler - routes requests to appropriate handlers"""
@@ -80,10 +76,6 @@ class handler(BaseHTTPRequestHandler):
                 return
             
             # Initialize DB client
-            if not SupabaseClient:
-                self._send_error(500, "Database client not initialized")
-                return
-            
             db = SupabaseClient()
             
             # Frontend GET endpoints
@@ -131,10 +123,6 @@ class handler(BaseHTTPRequestHandler):
                 body = json.loads(body_str) if body_str else {}
             
             # Initialize DB client
-            if not SupabaseClient:
-                self._send_error(500, "Database client not initialized")
-                return
-            
             db = SupabaseClient()
             
             # Trading pipeline endpoints

@@ -11,13 +11,19 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.services.matching.matcher import Matcher
-from src.strategies.simple_arb import SimpleArbitrageStrategy
-from src.services.execution.executor import Executor
-from src.exchanges.kalshi_client import KalshiClient
-from src.exchanges.polymarket_client import PolymarketClient
-from src.models import Market, Opportunity
-from src.types import Exchange, Outcome
+# Only import what we absolutely need
+# Avoid importing heavy dependencies that may not be available on Vercel
+try:
+    from src.types import Exchange, Outcome
+except ImportError:
+    # Fallback if imports fail
+    class Exchange:
+        KALSHI = "kalshi"
+        POLYMARKET = "polymarket"
+    
+    class Outcome:
+        YES = "YES"
+        NO = "NO"
 
 # ========== Pipeline Endpoints ==========
 
@@ -27,6 +33,11 @@ def scan_markets_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
     Called by cron job hourly
     """
     try:
+        # Import heavy dependencies only when needed
+        from src.exchanges.kalshi.client import KalshiClient
+        from src.exchanges.polymarket.client import PolymarketClient
+        from src.services.matching.matcher import Matcher
+        
         # Start scan log
         scan_log = db.start_scan_log(body.get('scan_type', 'scheduled'))
         scan_id = scan_log['id']
@@ -58,11 +69,11 @@ def scan_markets_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
                     'market_id': km.market_id,
                     'exchange': 'kalshi',
                     'title': km.title,
-                    'outcome': outcome.value,
+                    'outcome': outcome.value if hasattr(outcome, 'value') else outcome,
                     'price': km.yes_price if outcome == Outcome.YES else km.no_price,
                     'volume': km.volume,
                     'liquidity': km.liquidity,
-                    'status': km.status.value,
+                    'status': km.status.value if hasattr(km.status, 'value') else km.status,
                     'close_date': km.close_date.isoformat() if km.close_date else None,
                 })
         
@@ -73,11 +84,11 @@ def scan_markets_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
                     'market_id': pm.market_id,
                     'exchange': 'polymarket',
                     'title': pm.title,
-                    'outcome': outcome.value,
+                    'outcome': outcome.value if hasattr(outcome, 'value') else outcome,
                     'price': pm.yes_price if outcome == Outcome.YES else pm.no_price,
                     'volume': pm.volume,
                     'liquidity': pm.liquidity,
-                    'status': pm.status.value,
+                    'status': pm.status.value if hasattr(pm.status, 'value') else pm.status,
                     'close_date': pm.close_date.isoformat() if pm.close_date else None,
                 })
         
@@ -134,6 +145,10 @@ def detect_opportunities_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
     Uses strategy logic to find profitable trades
     """
     try:
+        # Import heavy dependencies only when needed
+        from src.models import Market
+        from src.strategies.simple_arb import SimpleArbitrageStrategy
+        
         # Get active matches from database
         matches = db.get_active_matches()
         
@@ -244,6 +259,9 @@ def execute_trades_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
     Places orders on exchanges and updates database
     """
     try:
+        # Import heavy dependencies only when needed
+        from src.services.execution.executor import Executor
+        
         # Get new opportunities (not yet executed)
         opportunities = db.get_new_opportunities()
         
