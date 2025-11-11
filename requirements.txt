@@ -1,10 +1,6 @@
 # Supabase client for database operations
 supabase==2.7.4
 
-# Required by supabase
-postgrest==0.13.2
-storage3==0.7.4
-
 # Testing
 pytest==7.4.3
 pytest-cov==4.1.0
