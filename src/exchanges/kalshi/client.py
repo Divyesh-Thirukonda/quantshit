@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 import requests
 
 from ...models import Market, Order
-from ...types import Exchange, MarketStatus, OrderSide, OrderStatus
+from ...fin_types import Exchange, MarketStatus, OrderSide, OrderStatus
 from ...utils import get_logger
 from ..base import BaseExchangeClient
 from .parser import parse_market, parse_order
@@ -34,18 +34,35 @@ class KalshiClient(BaseExchangeClient):
         if api_key:
             self.session.headers.update(self._get_auth_headers())
 
-    def get_markets(self, min_volume: float = 0) -> List[Market]:
+    def get_markets(
+        self, 
+        min_volume: float = 0,
+        min_liquidity: float = 0,
+        max_volume: float = None,
+        max_liquidity: float = None
+    ) -> List[Market]:
         """
         Fetch available markets from Kalshi using cursor pagination.
 
         Args:
             min_volume: Minimum volume filter (in dollars)
+            min_liquidity: Minimum liquidity filter (in dollars)
+            max_volume: Maximum volume filter (in dollars)
+            max_liquidity: Maximum liquidity filter (in dollars)
 
         Returns:
             List of Market objects
+            
+        Note:
+            Kalshi API doesn't support volume/liquidity filters at the API level,
+            so filtering is done client-side after fetching all markets.
         """
         try:
-            logger.info(f"Fetching markets from Kalshi (min_volume: ${min_volume})")
+            logger.info(
+                f"Fetching markets from Kalshi "
+                f"(volume: ${min_volume:,.0f}-{max_volume if max_volume else '∞'}, "
+                f"liquidity: ${min_liquidity:,.0f}-{max_liquidity if max_liquidity else '∞'})"
+            )
 
             markets = []
             cursor = None
@@ -82,7 +99,16 @@ class KalshiClient(BaseExchangeClient):
                 for market_data in market_list:
                     try:
                         market = parse_market(market_data)
-                        if market and market.volume >= min_volume:
+                        if market:
+                            # Apply client-side filters
+                            if market.volume < min_volume:
+                                continue
+                            if max_volume and market.volume > max_volume:
+                                continue
+                            if market.liquidity < min_liquidity:
+                                continue
+                            if max_liquidity and market.liquidity > max_liquidity:
+                                continue
                             markets.append(market)
                     except Exception as e:
                         logger.warning(f"Failed to parse Kalshi market: {e}")

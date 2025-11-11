@@ -6,7 +6,7 @@ All exchange clients must implement this interface.
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 from ..models import Market, Order
-from ..types import Exchange, OrderSide
+from ..fin_types import Exchange, OrderSide
 
 
 class BaseExchangeClient(ABC):
@@ -27,12 +27,21 @@ class BaseExchangeClient(ABC):
         self.exchange = exchange
 
     @abstractmethod
-    def get_markets(self, min_volume: float = 0) -> List[Market]:
+    def get_markets(
+        self, 
+        min_volume: float = 0,
+        min_liquidity: float = 0,
+        max_volume: float = None,
+        max_liquidity: float = None
+    ) -> List[Market]:
         """
         Fetch available markets from the exchange.
 
         Args:
-            min_volume: Minimum volume filter
+            min_volume: Minimum volume filter (in dollars)
+            min_liquidity: Minimum liquidity filter (in dollars)
+            max_volume: Maximum volume filter (in dollars)
+            max_liquidity: Maximum liquidity filter (in dollars)
 
         Returns:
             List of Market objects
