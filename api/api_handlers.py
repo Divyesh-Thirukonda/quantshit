@@ -265,6 +265,7 @@ def execute_trades_handler(db, body: Dict[str, Any]) -> Dict[str, Any]:
         # Get new opportunities (not yet executed)
         opportunities = db.get_new_opportunities()
         
+        
         if not opportunities:
             return {
                 'success': True,
