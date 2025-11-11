@@ -1,17 +1,12 @@
-# Supabase client for database operations
-supabase==2.4.0
+supabase
 
-# Testing
-pytest==7.4.3
-pytest-cov==4.1.0
-pytest-asyncio==0.21.1
+pytest
+pytest-cov
+pytest-asyncio
 
-# Environment management
-python-dotenv==1.0.0
+python-dotenv
 
-# HTTP requests
-requests==2.31.0
-httpx==0.25.1
+requests
+httpx
 
-# Data handling
-python-dateutil==2.8.2
+python-dateutil
