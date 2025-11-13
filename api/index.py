@@ -69,8 +69,18 @@ class handler(BaseHTTPRequestHandler):
                     'version': '1.0.0',
                     'endpoints': {
                         'cron': ['/api/scan-markets'],
-                        'pipeline': ['/api/detect-opportunities', '/api/manage-portfolio', '/api/execute-trades'],
-                        'frontend': ['/api/markets', '/api/opportunities', '/api/positions', '/api/orders', '/api/stats', '/api/scans']
+                        'pipeline': ['/api/detect-opportunities', '/api/manage-portfolio', '/api/execute-trades', '/api/scan'],
+                        'frontend': [
+                            '/api/markets',
+                            '/api/opportunities',
+                            '/api/positions',
+                            '/api/orders',
+                            '/api/stats',
+                            '/api/scans',
+                            '/api/dashboard/stats',
+                            '/api/dashboard/trades',
+                            '/api/dashboard/activity'
+                        ]
                     }
                 })
                 return
@@ -102,7 +112,48 @@ class handler(BaseHTTPRequestHandler):
             elif path == '/api/scans':
                 result = get_scan_logs_handler(db, parse_qs(parsed.query))
                 self._send_json_response(200, result)
-                
+
+            # Dashboard endpoint aliases for frontend compatibility
+            elif path == '/api/dashboard/stats':
+                result = get_stats_handler(db)
+                self._send_json_response(200, result)
+
+            elif path == '/api/dashboard/trades':
+                result = get_orders_handler(db, parse_qs(parsed.query))
+                self._send_json_response(200, result)
+
+            elif path == '/api/dashboard/activity':
+                # Return activity feed from recent scans and orders
+                scans = get_scan_logs_handler(db, {'limit': ['10']})
+                orders = get_orders_handler(db, {'limit': ['10']})
+                activity = {
+                    'success': True,
+                    'activity': []
+                }
+                # Combine scans and orders into activity feed
+                if scans.get('success'):
+                    for scan in scans.get('scans', []):
+                        activity['activity'].append({
+                            'type': 'scan',
+                            'timestamp': scan.get('created_at'),
+                            'message': f"Market scan completed: {scan.get('markets_scanned', 0)} markets",
+                            'data': scan
+                        })
+                if orders.get('success'):
+                    for order in orders.get('orders', []):
+                        activity['activity'].append({
+                            'type': 'order',
+                            'timestamp': order.get('created_at'),
+                            'message': f"{order.get('side', 'order').upper()}: {order.get('symbol', '')}",
+                            'data': order
+                        })
+                # Sort by timestamp descending
+                activity['activity'].sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+                # Limit to requested amount
+                limit = parse_qs(parsed.query).get('limit', ['20'])[0]
+                activity['activity'] = activity['activity'][:int(limit)]
+                self._send_json_response(200, activity)
+
             else:
                 self._send_error(404, f"Endpoint not found: {path}")
                 
@@ -141,7 +192,12 @@ class handler(BaseHTTPRequestHandler):
             elif path == '/api/execute-trades':
                 result = execute_trades_handler(db, body)
                 self._send_json_response(200, result)
-                
+
+            # Dashboard endpoint alias for frontend compatibility
+            elif path == '/api/scan':
+                result = scan_markets_handler(db, body)
+                self._send_json_response(200, result)
+
             else:
                 self._send_error(404, f"Endpoint not found: {path}")
                 
