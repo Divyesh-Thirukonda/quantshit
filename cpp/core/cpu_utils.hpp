@@ -13,6 +13,7 @@
  * - Core isolation recommendations
  */
 
+#include <atomic>
 #include <cstdint>
 #include <pthread.h>
 #include <sched.h>
@@ -24,6 +25,11 @@
 
 #ifdef __linux__
 #include <numa.h>
+#endif
+
+#ifdef __APPLE__
+#include <mach/mach.h>
+#include <mach/thread_policy.h>
 #endif
 
 namespace quantshit {

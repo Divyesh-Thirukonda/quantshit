@@ -9,12 +9,14 @@
 
 #include <atomic>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 #include <vector>
 
+#include "../core/cpu_utils.hpp"
 #include "../core/lock_free_queue.hpp"
 #include "../core/timing.hpp"
 #include "../network/packet_normalizer.hpp"
@@ -164,9 +166,13 @@ public:
       std::function<void(const std::string &, const OrderBook &)>;
 
   struct Config {
-    int handler_thread_core = -1;
-    size_t update_queue_size = 65536;
-    bool maintain_full_books = true;
+    int handler_thread_core;
+    size_t update_queue_size;
+    bool maintain_full_books;
+    // Explicit constructor to satisfy AppleClang nested struct requirements
+    Config()
+        : handler_thread_core(-1), update_queue_size(65536),
+          maintain_full_books(true) {}
   };
 
   explicit MarketDataHandler(const Config &config = Config())

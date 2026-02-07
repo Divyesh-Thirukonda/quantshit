@@ -58,11 +58,15 @@ struct RoutingDecision {
 class OrderRouter {
 public:
   struct Config {
-    RoutingStrategy default_strategy = RoutingStrategy::SMART;
-    double min_split_size = 100.0; // Minimum size before splitting
-    double latency_weight = 0.3;   // Weight for latency in smart routing
-    double price_weight = 0.4;     // Weight for price
-    double fill_rate_weight = 0.3; // Weight for fill rate
+    RoutingStrategy default_strategy;
+    double min_split_size;   // Minimum size before splitting
+    double latency_weight;   // Weight for latency in smart routing
+    double price_weight;     // Weight for price
+    double fill_rate_weight; // Weight for fill rate
+    // Explicit constructor to satisfy AppleClang nested struct requirements
+    Config()
+        : default_strategy(RoutingStrategy::SMART), min_split_size(100.0),
+          latency_weight(0.3), price_weight(0.4), fill_rate_weight(0.3) {}
   };
 
   explicit OrderRouter(ExecutionEngine &engine, MarketDataHandler &market_data,

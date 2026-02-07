@@ -11,9 +11,10 @@
 #include <arpa/inet.h>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <optional>
-#include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 

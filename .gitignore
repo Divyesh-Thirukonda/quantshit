@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+/cpp/build
+/cpp/.cache
+/cpp/demo
+/cpp/compile_commands.json
+
 # Distribution / packaging
 .Python
 develop-eggs/

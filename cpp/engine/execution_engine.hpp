@@ -217,10 +217,14 @@ public:
   using ExecutionCallback = std::function<void(const ExecutionReport &)>;
 
   struct Config {
-    int order_thread_core = -1; // CPU core for order thread (-1 = no pinning)
-    int market_data_thread_core = -1;
-    size_t order_queue_size = 16384;
+    int order_thread_core; // CPU core for order thread (-1 = no pinning)
+    int market_data_thread_core;
+    size_t order_queue_size;
     RiskLimits risk_limits;
+    // Explicit constructor to satisfy AppleClang nested struct requirements
+    Config()
+        : order_thread_core(-1), market_data_thread_core(-1),
+          order_queue_size(16384), risk_limits() {}
   };
 
   explicit ExecutionEngine(const Config &config = Config())
